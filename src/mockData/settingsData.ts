@@ -1,0 +1,95 @@
+import { SettingsData } from '../types/settings';
+
+export const mockSettingsData: SettingsData = {
+  preferences: {
+    theme: 'light',
+    preferredUnits: 'metric',
+    depthScale: 'meters',
+    coordinateFormat: 'decimal',
+    autoRefreshIntervalSeconds: 60,
+  },
+  systemHealth: [
+    {
+      serviceName: 'INCOIS Live Telemetry Feed (OMNI/RAMA)',
+      endpoint: 'https://incois.gov.in/api/v1/telemetry/buoys',
+      status: 'healthy',
+      latencyMs: 42,
+      lastChecked: 'Just now',
+    },
+    {
+      serviceName: 'ARGO Global Data Assembly Center (GDAC)',
+      endpoint: 'https://incois.gov.in/api/v1/argo/profiles',
+      status: 'healthy',
+      latencyMs: 78,
+      lastChecked: '1 min ago',
+    },
+    {
+      serviceName: 'ROMS High-Resolution Hydrodynamic Model',
+      endpoint: 'https://incois.gov.in/models/roms/v3',
+      status: 'healthy',
+      latencyMs: 110,
+      lastChecked: '5 mins ago',
+    },
+    {
+      serviceName: 'Indian Tsunami Early Warning Centre (ITEWC)',
+      endpoint: 'https://itewc.incois.gov.in/api/status',
+      status: 'healthy',
+      latencyMs: 18,
+      lastChecked: 'Continuous',
+    },
+  ],
+  storageUsage: {
+    cachedMb: 248.6,
+    maxCacheMb: 1024,
+    offlineTileStoreMb: 85.2,
+  },
+  syncStatus: [
+    {
+      datasetName: 'Ocean Surface Current Vector Fields',
+      recordsCount: 142500,
+      lastSynced: '10 mins ago',
+      syncFrequency: 'Hourly',
+      syncState: 'synchronized',
+    },
+    {
+      datasetName: 'Chlorophyll-a & Biogeochemical Grids',
+      recordsCount: 84300,
+      lastSynced: '25 mins ago',
+      syncFrequency: 'Every 6 Hours',
+      syncState: 'synchronized',
+    },
+    {
+      datasetName: 'High Wave Early Warning Coastal Polygons',
+      recordsCount: 4200,
+      lastSynced: 'Just now',
+      syncFrequency: 'Real-time',
+      syncState: 'synchronized',
+    },
+  ],
+  recentAuditLogs: [
+    {
+      id: 'LOG-8841',
+      timestamp: '2026-09-11 11:42:10 IST',
+      action: 'DATASET_CACHE_PURGE',
+      user: 'admin@incois.gov.in',
+      ipAddress: '192.168.1.104',
+      status: 'SUCCESS',
+    },
+    {
+      id: 'LOG-8840',
+      timestamp: '2026-09-11 10:15:33 IST',
+      action: 'TELEMETRY_ENDPOINT_RECONNECT',
+      user: 'system_daemon',
+      ipAddress: '127.0.0.1',
+      status: 'SUCCESS',
+    },
+    {
+      id: 'LOG-8839',
+      timestamp: '2026-09-11 08:00:00 IST',
+      action: 'ROMS_MODEL_RUN_INGEST',
+      user: 'model_scheduler',
+      ipAddress: '10.0.4.12',
+      status: 'SUCCESS',
+    },
+  ],
+};

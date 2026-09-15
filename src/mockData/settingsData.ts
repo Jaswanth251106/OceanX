@@ -7,6 +7,8 @@ export const mockSettingsData: SettingsData = {
     depthScale: 'meters',
     coordinateFormat: 'decimal',
     autoRefreshIntervalSeconds: 60,
+    language: 'en',
+    emailNotifications: true,
   },
   systemHealth: [
     {

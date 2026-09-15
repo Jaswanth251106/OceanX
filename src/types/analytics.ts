@@ -13,8 +13,63 @@ export interface BasinAnalysisSummary {
   confidenceScore: number;
 }
 
-export interface OceanAnalyticsData {
-  timeframe: string;
-  basinSummaries: BasinAnalysisSummary[];
-  sstAnomaliesTimeSeries: OceanTrendDataPoint[];
+// ---- New Extended Types ----
+
+export interface AnalyticsFilterState {
+  region: string;
+  variable: string;
+  timeRange: string;
+}
+
+export interface AnalyticsKPIs {
+  totalObservations: number;
+  dataQualityScore: number;
+  modelAccuracyPercentage: number;
+  activeAnomalies: number;
+}
+
+export interface TemperatureTrendPoint {
+  date: string;
+  averageSST: number;
+  climatologySST: number;
+}
+
+export interface SalinityTrendPoint {
+  date: string;
+  surfaceSalinity: number;
+  deepSalinity: number;
+}
+
+export interface ModelPerformancePoint {
+  modelName: string;
+  rmse: number;
+  bias: number;
+  correlation: number;
+}
+
+export interface AnomalySummary {
+  id: string;
+  region: string;
+  type: string;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  description: string;
+  detectedAt: string;
+}
+
+export interface InsightItem {
+  id: string;
+  title: string;
+  description: string;
+  date: string;
+  category: 'trend' | 'alert' | 'performance';
+}
+
+export interface CompleteAnalyticsData {
+  filters: AnalyticsFilterState;
+  kpis: AnalyticsKPIs;
+  temperatureTrends: TemperatureTrendPoint[];
+  salinityTrends: SalinityTrendPoint[];
+  modelPerformance: ModelPerformancePoint[];
+  anomalies: AnomalySummary[];
+  recentInsights: InsightItem[];
 }

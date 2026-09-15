@@ -1,6 +1,10 @@
-import { OceanAnalyticsData } from '../types/analytics';
+import {
+  OceanTrendDataPoint,
+  BasinAnalysisSummary,
+  CompleteAnalyticsData,
+} from '../types/analytics';
 
-export const mockAnalyticsData: OceanAnalyticsData = {
+export const mockLegacyAnalyticsData = {
   timeframe: '2026 Q1-Q3 Observational Aggregate',
   basinSummaries: [
     {
@@ -31,7 +35,7 @@ export const mockAnalyticsData: OceanAnalyticsData = {
       marineHeatwaveDays: 14,
       confidenceScore: 95.7,
     },
-  ],
+  ] as BasinAnalysisSummary[],
   sstAnomaliesTimeSeries: [
     { date: 'Jan 2026', anomalyCelsius: 0.62, baselineCelsius: 28.2, oceanHeatContentZJ: 242.1 },
     { date: 'Feb 2026', anomalyCelsius: 0.71, baselineCelsius: 28.4, oceanHeatContentZJ: 243.5 },
@@ -42,5 +46,96 @@ export const mockAnalyticsData: OceanAnalyticsData = {
     { date: 'Jul 2026', anomalyCelsius: 0.82, baselineCelsius: 28.6, oceanHeatContentZJ: 247.9 },
     { date: 'Aug 2026', anomalyCelsius: 0.79, baselineCelsius: 28.5, oceanHeatContentZJ: 247.4 },
     { date: 'Sep 2026', anomalyCelsius: 0.85, baselineCelsius: 28.7, oceanHeatContentZJ: 248.3 },
+  ] as OceanTrendDataPoint[],
+};
+
+export const mockCompleteAnalyticsData: CompleteAnalyticsData = {
+  filters: {
+    region: 'all',
+    variable: 'all',
+    timeRange: 'ytd',
+  },
+  kpis: {
+    totalObservations: 1450289,
+    dataQualityScore: 98.4,
+    modelAccuracyPercentage: 94.2,
+    activeAnomalies: 12,
+  },
+  temperatureTrends: [
+    { date: 'Jan', averageSST: 28.4, climatologySST: 28.1 },
+    { date: 'Feb', averageSST: 28.6, climatologySST: 28.3 },
+    { date: 'Mar', averageSST: 29.1, climatologySST: 28.8 },
+    { date: 'Apr', averageSST: 29.8, climatologySST: 29.4 },
+    { date: 'May', averageSST: 30.2, climatologySST: 29.7 },
+    { date: 'Jun', averageSST: 29.5, climatologySST: 29.1 },
+    { date: 'Jul', averageSST: 28.9, climatologySST: 28.6 },
+    { date: 'Aug', averageSST: 28.7, climatologySST: 28.4 },
+    { date: 'Sep', averageSST: 28.9, climatologySST: 28.5 },
+  ],
+  salinityTrends: [
+    { date: 'Jan', surfaceSalinity: 34.8, deepSalinity: 35.1 },
+    { date: 'Feb', surfaceSalinity: 34.9, deepSalinity: 35.1 },
+    { date: 'Mar', surfaceSalinity: 35.1, deepSalinity: 35.2 },
+    { date: 'Apr', surfaceSalinity: 35.4, deepSalinity: 35.2 },
+    { date: 'May', surfaceSalinity: 35.3, deepSalinity: 35.2 },
+    { date: 'Jun', surfaceSalinity: 34.6, deepSalinity: 35.1 },
+    { date: 'Jul', surfaceSalinity: 34.2, deepSalinity: 35.1 },
+    { date: 'Aug', surfaceSalinity: 34.4, deepSalinity: 35.1 },
+    { date: 'Sep', surfaceSalinity: 34.5, deepSalinity: 35.1 },
+  ],
+  modelPerformance: [
+    { modelName: 'HYCOM', rmse: 0.35, bias: 0.12, correlation: 0.94 },
+    { modelName: 'ROMS', rmse: 0.41, bias: -0.08, correlation: 0.92 },
+    { modelName: 'Copernicus', rmse: 0.32, bias: 0.05, correlation: 0.96 },
+    { modelName: 'MOM6', rmse: 0.45, bias: 0.18, correlation: 0.89 },
+  ],
+  anomalies: [
+    {
+      id: 'anom-01',
+      region: 'Arabian Sea (Central)',
+      type: 'Marine Heatwave',
+      severity: 'critical',
+      description: 'SST anomaly +1.8°C sustained for 14 days.',
+      detectedAt: '2026-09-12T08:00:00Z',
+    },
+    {
+      id: 'anom-02',
+      region: 'Bay of Bengal (North)',
+      type: 'Freshening Event',
+      severity: 'high',
+      description: 'Sudden drop in surface salinity by 1.2 PSU.',
+      detectedAt: '2026-09-14T12:30:00Z',
+    },
+    {
+      id: 'anom-03',
+      region: 'Equatorial Indian Ocean',
+      type: 'Current Reversal',
+      severity: 'medium',
+      description: 'Anomalous eastward flow detected early.',
+      detectedAt: '2026-09-10T04:15:00Z',
+    },
+  ],
+  recentInsights: [
+    {
+      id: 'ins-01',
+      title: 'Stronger stratification in Arabian Sea',
+      description: 'Model ensembles suggest enhanced vertical stratification reducing mixed layer depth by 15%.',
+      date: '2026-09-15',
+      category: 'trend',
+    },
+    {
+      id: 'ins-02',
+      title: 'Data gap in Southern Ocean',
+      description: 'Argo float density dropped below threshold in region 45S-60S.',
+      date: '2026-09-14',
+      category: 'alert',
+    },
+    {
+      id: 'ins-03',
+      title: 'HYCOM accuracy improved',
+      description: 'Recent assimilation of satellite altimetry improved SLA RMSE by 0.04m.',
+      date: '2026-09-12',
+      category: 'performance',
+    },
   ],
 };

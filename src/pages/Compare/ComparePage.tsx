@@ -1,129 +1,149 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PageHeader } from '../../components/layout/PageHeader';
-import { Tabs } from '../../components/navigation/Tabs';
-import { MetricCard } from '../../components/cards/MetricCard';
-import { ChartCard } from '../../components/cards/ChartCard';
-import { DataTable, ColumnDef } from '../../components/tables/DataTable';
-import { StatusBadge } from '../../components/feedback/StatusBadge';
-import { LoadingState } from '../../components/feedback/LoadingState';
 import { comparisonService } from '../../services/comparisonService';
-import { ComparisonScenario, ModelVsObservedComparison } from '../../types/comparison';
-import { formatCelsius } from '../../utils/formatters';
+import { ComparisonOptions, CompleteComparisonData, ComparisonFilterState } from '../../types/comparison';
+
+// Sub-components
+import { ComparisonFilters } from './components/ComparisonFilters';
+import { ModelViewCard } from './components/ModelViewCard';
+import { ObservationViewCard } from './components/ObservationViewCard';
+import { ComparisonProfiles } from './components/ComparisonProfiles';
+import { SelectionDetails } from './components/SelectionDetails';
+import { ModelGridMatch } from './components/ModelGridMatch';
+import { ComparisonMetrics } from './components/ComparisonMetrics';
+import { BiasAnalysis } from './components/BiasAnalysis';
 
 export const ComparePage: React.FC = () => {
-  const [scenarios, setScenarios] = useState<ComparisonScenario[]>([]);
-  const [activeScenarioId, setActiveScenarioId] = useState<string>('cmp-01');
-  const [loading, setLoading] = useState(true);
+  const [options, setOptions] = useState<ComparisonOptions | null>(null);
+  const [filters, setFilters] = useState<ComparisonFilterState>({
+    model: 'hycom_as',
+    observationSource: 'argo_floats',
+    variable: 'temperature',
+    region: 'arabian_sea',
+    depth: 0,
+    date: '2026-09-10',
+  });
+  
+  const [data, setData] = useState<CompleteComparisonData | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
+  // Load initial options
   useEffect(() => {
-    async function load() {
-      setLoading(true);
+    const fetchOptions = async () => {
       try {
-        const data = await comparisonService.getComparisonScenarios();
-        setScenarios(data);
-        if (data.length > 0) {
-          setActiveScenarioId(data[0].id);
-        }
-      } finally {
-        setLoading(false);
+        const opts = await comparisonService.getComparisonOptions();
+        setOptions(opts);
+      } catch (err) {
+        console.error('Failed to load comparison options', err);
+        setError('Failed to load comparison options.');
       }
-    }
-    load();
+    };
+    fetchOptions();
   }, []);
 
-  const currentScenario = scenarios.find((s) => s.id === activeScenarioId);
+  // Load comparison data
+  const loadData = async (currentFilters: ComparisonFilterState) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await comparisonService.getComparisonData(currentFilters);
+      setData(res);
+    } catch (err) {
+      console.error('Failed to load comparison data', err);
+      setError('Failed to load comparison data.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const columns: ColumnDef<ModelVsObservedComparison>[] = [
-    { header: 'Time (UTC)', accessorKey: 'timestamp', width: '120px' },
-    {
-      header: 'Observed Value',
-      cell: (row) => <strong>{formatCelsius(row.observedSst)}</strong>,
-    },
-    {
-      header: 'Model Output',
-      cell: (row) => formatCelsius(row.modeledSst),
-    },
-    {
-      header: 'Variance / Delta',
-      cell: (row) => (
-        <span
-          style={{
-            fontWeight: 600,
-            color: Math.abs(row.variance) <= 0.1 ? 'var(--color-success)' : 'var(--color-warning)',
-          }}
-        >
-          {row.variance > 0 ? `+${row.variance}` : row.variance}°C
-        </span>
-      ),
-    },
-    {
-      header: 'Observed Salinity',
-      cell: (row) => `${row.salinityObserved} PSU`,
-    },
-    {
-      header: 'Modeled Salinity',
-      cell: (row) => `${row.salinityModeled} PSU`,
-    },
-  ];
+  // Initial load
+  useEffect(() => {
+    loadData(filters);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleApply = () => {
+    loadData(filters);
+  };
 
   return (
-    <div>
+    <div style={{ padding: '2rem', maxWidth: 1400, margin: '0 auto' }}>
       <PageHeader
-        title="Model Validation & Comparative Analysis"
-        subtitle="Benchmark numerical hydrodynamic models (ROMS, WaveWatch III, HYCOM) against calibrated in-situ buoy observations."
-        badge={<StatusBadge label="Validation Engine Synchronized" variant="success" />}
-        breadcrumbs={[{ label: 'Home', href: '/dashboard' }, { label: 'Compare' }]}
-      />
+          title="Compare Data"
+          subtitle="Model vs In-Situ Observation Analysis"
+        />
 
-      {loading ? (
-        <LoadingState message="Loading comparative datasets..." />
-      ) : currentScenario ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
-          <Tabs
-            tabs={scenarios.map((s) => ({ id: s.id, label: s.name }))}
-            activeTabId={activeScenarioId}
-            onTabChange={setActiveScenarioId}
-          />
-
-          {/* Statistical Validation Metrics */}
-          <MetricCard
-            title={`${currentScenario.sourceA} vs ${currentScenario.sourceB}`}
-            category={`Station: ${currentScenario.stationId}`}
-            metrics={[
-              {
-                label: 'Correlation (r)',
-                value: currentScenario.correlationCoefficient,
-                subtext: 'High statistical correlation',
-              },
-              {
-                label: 'Root Mean Square Error',
-                value: currentScenario.rmse,
-                unit: '°C',
-                subtext: 'Within 0.4°C tolerance',
-              },
-              {
-                label: 'Systematic Bias',
-                value: currentScenario.bias > 0 ? `+${currentScenario.bias}` : currentScenario.bias,
-                unit: '°C',
-                subtext: 'Slight positive model warmth',
-              },
-            ]}
-          />
-
-          {/* Time-series Table comparison */}
-          <ChartCard
-            title={`Temporal Variance Profile (${currentScenario.parameter})`}
-            subtitle="Side-by-side 4-hourly verification records"
-            footerInfo="Source: INCOIS National Data Centre Operational Verification Stream"
-          >
-            <DataTable
-              columns={columns}
-              data={currentScenario.timeSeries}
-              keyExtractor={(r) => r.timestamp}
+        <div style={{ display: 'flex', gap: '1.5rem', marginTop: '1.5rem', alignItems: 'flex-start' }}>
+          
+          {/* Left panel: Filters */}
+          {options ? (
+            <ComparisonFilters
+              options={options}
+              filters={filters}
+              onChange={setFilters}
+              onApply={handleApply}
+              loading={loading}
             />
-          </ChartCard>
+          ) : (
+            <div style={{ width: 240, minWidth: 200, padding: '2rem', textAlign: 'center', color: '#5a7184' }}>
+              Loading filters...
+            </div>
+          )}
+
+          {/* Main content */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            
+            {error && (
+              <div style={{ padding: '1rem', background: '#FFF0F0', color: '#E5484D', borderRadius: '8px', border: '1px solid #FECACA' }}>
+                {error}
+              </div>
+            )}
+
+            {!data && loading && !error && (
+              <div style={{ padding: '4rem', textAlign: 'center', color: '#5a7184' }}>
+                Loading comparison data...
+              </div>
+            )}
+
+            {data && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                
+                {/* Row 1: Model & Observation Cards */}
+                <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
+                  <ModelViewCard data={data.modelData} />
+                  <ObservationViewCard data={data.observationData} />
+                </div>
+
+                {/* Row 2: Metrics */}
+                <ComparisonMetrics metrics={data.metrics} />
+
+                {/* Row 3: Profiles and Grid Info */}
+                <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
+                  <ComparisonProfiles
+                    tempProfile={data.temperatureProfile}
+                    salinityProfile={data.salinityProfile}
+                    activeVariable={filters.variable}
+                  />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', flex: 1, minWidth: 280 }}>
+                    <SelectionDetails 
+                      gridInfo={data.gridInfo} 
+                      obsLat={data.observationData.lat} 
+                      obsLon={data.observationData.lon} 
+                    />
+                    <ModelGridMatch gridInfo={data.gridInfo} />
+                  </div>
+                </div>
+
+                {/* Row 4: Bias Analysis */}
+                <div style={{ display: 'flex', gap: '1.5rem' }}>
+                  <BiasAnalysis biasData={data.biasAnalysis} />
+                </div>
+
+              </div>
+            )}
+            
+          </div>
         </div>
-      ) : null}
-    </div>
+      </div>
   );
 };

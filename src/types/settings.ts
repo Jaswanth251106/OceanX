@@ -4,6 +4,8 @@ export interface UserPreference {
   depthScale: 'meters' | 'fathoms';
   coordinateFormat: 'decimal' | 'dms';
   autoRefreshIntervalSeconds: number;
+  language: string;
+  emailNotifications: boolean;
 }
 
 export interface SystemHealthStatus {

@@ -23,14 +23,29 @@ export const SALINITY_COLORS = [
   '#D0D95A',
 ];
 
+export const CHLOROPHYLL_COLORS = [
+  '#081D58',
+  '#225EA8',
+  '#1D91C0',
+  '#41B6C4',
+  '#7FCDBB',
+  '#C7E9B4',
+  '#EDF8B1',
+  '#FFFFD9',
+];
+
 export function getScalarColor(
   value: number,
   min: number,
   max: number,
-  variable: 'thetao' | 'so'
+  variable: 'thetao' | 'so' | 'chlorophyll'
 ): THREE.Color {
   const palette =
-    variable === 'thetao' ? TEMPERATURE_COLORS : SALINITY_COLORS;
+    variable === 'thetao'
+      ? TEMPERATURE_COLORS
+      : variable === 'so'
+      ? SALINITY_COLORS
+      : CHLOROPHYLL_COLORS;
 
   const denominator = Math.max(max - min, 0.000001);
 

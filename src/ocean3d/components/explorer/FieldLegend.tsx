@@ -1,5 +1,5 @@
 import type { ModelField, ScalarVariable } from '../../services/modelService';
-import { SALINITY_COLORS, TEMPERATURE_COLORS } from '../../utils/modelColors';
+import { SALINITY_COLORS, TEMPERATURE_COLORS, CHLOROPHYLL_COLORS } from '../../utils/modelColors';
 
 interface Props {
   field: ModelField | null;
@@ -10,13 +10,25 @@ export default function FieldLegend({ field, variable }: Props) {
   if (!field) return null;
 
   const colors =
-    variable === 'thetao' ? TEMPERATURE_COLORS : SALINITY_COLORS;
+    variable === 'thetao'
+      ? TEMPERATURE_COLORS
+      : variable === 'so'
+      ? SALINITY_COLORS
+      : CHLOROPHYLL_COLORS;
 
   const title =
-    variable === 'thetao' ? 'Temperature' : 'Salinity';
+    variable === 'thetao'
+      ? 'Temperature'
+      : variable === 'so'
+      ? 'Salinity'
+      : 'Chlorophyll';
 
   const defaultUnit =
-    variable === 'thetao' ? '°C' : 'PSU';
+    variable === 'thetao'
+      ? '°C'
+      : variable === 'so'
+      ? 'PSU'
+      : 'mg/m3';
 
   const displayUnit =
     field.unit || defaultUnit;

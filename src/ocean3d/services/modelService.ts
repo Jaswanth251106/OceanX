@@ -1,6 +1,6 @@
 const BASE_URL = 'http://10.101.5.53:8000';
 
-export type ScalarVariable = 'thetao' | 'so';
+export type ScalarVariable = 'thetao' | 'so' | 'chlorophyll';
 export type ModelVariable = ScalarVariable | 'uo' | 'vo';
 
 export interface ModelMetadata {

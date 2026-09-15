@@ -22,6 +22,9 @@ import { buildDemoArgoTrajectory } from '../../data/demoArgoTrajectory';
 import type { TrajectoryMode, VisualTrajectoryPoint } from '../../types/trajectory';
 import FieldLegend from './FieldLegend';
 import DepthAxis from './DepthAxis';
+import { getChlorophyllField } from '../../services/chlorophyllService';
+
+type ViewVariable = 'thetao' | 'so' | 'chlorophyll';
 
 export const OceanViewport: React.FC = () => {
   const opacity = useExplorerStore((state) => state.opacity);
@@ -56,6 +59,40 @@ export const OceanViewport: React.FC = () => {
     error,
   } = useOceanModel();
 
+  const [viewVariable, setViewVariable] = useState<ViewVariable>('thetao');
+  const [chlorophyllField, setChlorophyllField] = useState<any>(null);
+  const [chlorophyllLoading, setChlorophyllLoading] = useState(false);
+
+  useEffect(() => {
+    if (viewVariable !== 'chlorophyll') {
+      return;
+    }
+
+    const controller = new AbortController();
+
+    async function loadChlorophyll() {
+      try {
+        setChlorophyllLoading(true);
+
+        const field = await getChlorophyllField(controller.signal);
+
+        setChlorophyllField(field);
+      } catch (error: any) {
+        if (error?.name !== 'AbortError') {
+          console.error('Chlorophyll fetch error:', error);
+        }
+      } finally {
+        setChlorophyllLoading(false);
+      }
+    }
+
+    loadChlorophyll();
+
+    return () => {
+      controller.abort();
+    };
+  }, [viewVariable]);
+
   // Stacked Multi-Depth Slice Visualization State
   const [showMultiDepthSlices, setShowMultiDepthSlices] = useState(true);
 
@@ -85,9 +122,12 @@ export const OceanViewport: React.FC = () => {
   const activeDepth = depth ?? availableDepths[0] ?? 0;
 
   // Compute displayed scalar field (live API response or generated demo field)
-  const displayedScalarField = isUsingLiveModel
-    ? scalarField
-    : createDemoScalarField(variable, activeDepth, timeStep);
+  const displayedScalarField =
+    viewVariable === 'chlorophyll'
+      ? chlorophyllField
+      : isUsingLiveModel
+        ? scalarField
+        : createDemoScalarField(variable, activeDepth, timeStep);
 
   // Live Argo Markers & Trajectories State
   const [argoMarkers, setArgoMarkers] = useState<ArgoMarker[]>([]);
@@ -499,14 +539,14 @@ export const OceanViewport: React.FC = () => {
         }}
       >
         <DepthAxis
-          selectedDepth={activeDepth}
+          selectedDepth={viewVariable === 'chlorophyll' ? 0 : activeDepth}
           onSelectDepth={(d) => setDepth(d)}
           visible={true}
         />
       </div>
 
       {/* Loading Indicator Toast */}
-      {loading && (
+      {(loading || chlorophyllLoading) && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 bg-white/95 backdrop-blur px-4 py-2 rounded-lg shadow-md border border-[#D7E1EA] text-xs font-semibold text-[#152235] flex items-center space-x-2">
           <Loader2 className="w-4 h-4 text-[#1479F6] animate-spin" />
           <span>Loading ocean model data...</span>
@@ -533,8 +573,8 @@ export const OceanViewport: React.FC = () => {
         scalarField={displayedScalarField}
         uField={uField}
         vField={vField}
-        variable={variable}
-        selectedDepth={activeDepth}
+        variable={viewVariable as any}
+        selectedDepth={viewVariable === 'chlorophyll' ? 0 : activeDepth}
         verticalExaggeration={verticalExaggeration}
         showMultiDepthSlices={showMultiDepthSlices}
         demoTimeStep={timeStep}
@@ -555,7 +595,7 @@ export const OceanViewport: React.FC = () => {
       >
         <FieldLegend
           field={displayedScalarField}
-          variable={variable}
+          variable={viewVariable as any}
         />
       </div>
 
@@ -662,14 +702,19 @@ export const OceanViewport: React.FC = () => {
                   Variable
                 </label>
                 <select
-                  value={variable}
-                  onChange={(e) =>
-                    setVariable(e.target.value as 'thetao' | 'so')
-                  }
+                  value={viewVariable}
+                  onChange={(e) => {
+                    const next = e.target.value as ViewVariable;
+                    setViewVariable(next);
+                    if (next === 'thetao' || next === 'so') {
+                      setVariable(next);
+                    }
+                  }}
                   className="ocean-control-select"
                 >
                   <option value="thetao">Temperature</option>
                   <option value="so">Salinity</option>
+                  <option value="chlorophyll">Chlorophyll</option>
                 </select>
               </div>
 
@@ -688,7 +733,8 @@ export const OceanViewport: React.FC = () => {
                   Date
                 </label>
                 <select
-                  value={timeStep % availableTimes.length}
+                  value={viewVariable === 'chlorophyll' ? 0 : timeStep % availableTimes.length}
+                  disabled={viewVariable === 'chlorophyll'}
                   onChange={(e) => {
                     const idx = Number(e.target.value);
                     setTimeIndex(idx);
@@ -697,16 +743,20 @@ export const OceanViewport: React.FC = () => {
                   }}
                   className="ocean-control-select"
                 >
-                  {availableTimes.map((time, index) => {
-                    const formattedDate = time.includes('T')
-                      ? time.split('T')[0]
-                      : time;
-                    return (
-                      <option key={`${time}-${index}`} value={index}>
-                        {formattedDate}
-                      </option>
-                    );
-                  })}
+                  {viewVariable === 'chlorophyll' ? (
+                    <option value={0}>Fixed Period (2020-04-01 - 2020-05-01)</option>
+                  ) : (
+                    availableTimes.map((time, index) => {
+                      const formattedDate = time.includes('T')
+                        ? time.split('T')[0]
+                        : time;
+                      return (
+                        <option key={`${time}-${index}`} value={index}>
+                          {formattedDate}
+                        </option>
+                      );
+                    })
+                  )}
                 </select>
               </div>
 
@@ -725,15 +775,20 @@ export const OceanViewport: React.FC = () => {
                   Depth
                 </label>
                 <select
-                  value={activeDepth}
+                  value={viewVariable === 'chlorophyll' ? 0 : activeDepth}
+                  disabled={viewVariable === 'chlorophyll'}
                   onChange={(e) => setDepth(Number(e.target.value))}
                   className="ocean-control-select"
                 >
-                  {availableDepths.map((d) => (
-                    <option key={d} value={d}>
-                      {toDisplayDepth(Number(d))?.toFixed(1)} m
-                    </option>
-                  ))}
+                  {viewVariable === 'chlorophyll' ? (
+                    <option value={0}>Surface (0 m)</option>
+                  ) : (
+                    availableDepths.map((d) => (
+                      <option key={d} value={d}>
+                        {toDisplayDepth(Number(d))?.toFixed(1)} m
+                      </option>
+                    ))
+                  )}
                 </select>
               </div>
             </div>

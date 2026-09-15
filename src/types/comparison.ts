@@ -1,8 +1,145 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Comparison domain types — OceanX / INCOIS Ocean Explorer
+// Comparison domain types — Real Backend API Models + Complete Interfaces
 // ─────────────────────────────────────────────────────────────────────────────
 
-// ── Legacy types kept for backward compat ────────────────────────────────────
+export type PlatformType = 'ARGO' | 'GLIDER';
+export type RegionOption = 'Arabian Sea' | 'Bay of Bengal';
+
+// ── Backend API Response Interfaces ──────────────────────────────────────────
+
+// ARGO Float from API: GET /api/argo/floats
+export interface ArgoFloatItem {
+  platform_id: string;
+  platform_type: string;
+  latitude: number;
+  longitude: number;
+  last_seen: string;
+}
+
+export interface ArgoFloatsResponse {
+  count: number;
+  floats: ArgoFloatItem[];
+}
+
+// Glider from API: GET /api/glider/gliders
+export interface GliderItem {
+  glider_id: string;
+  glider_name: string;
+  latitude: number;
+  longitude: number;
+  last_seen: string;
+}
+
+export interface GlidersResponse {
+  count: number;
+  gliders: GliderItem[];
+}
+
+// Single comparison measurement pair
+export interface ParameterComparisonValue {
+  argo?: number | null;
+  glider?: number | null;
+  model: number | null;
+  difference: number | null;
+}
+
+// ARGO Comparison Record: GET /api/comparison/argo?platform_id={id}&limit=100&offset=0
+export interface ArgoComparisonRecord {
+  platform_id: string;
+  cycle_number: number;
+  observation_time: string;
+  latitude: number;
+  longitude: number;
+  depth: number;
+  temperature: ParameterComparisonValue;
+  salinity: ParameterComparisonValue;
+}
+
+export interface ArgoComparisonResponse {
+  count: number;
+  limit: number;
+  offset: number;
+  comparisons: ArgoComparisonRecord[];
+}
+
+// Glider Comparison Record: GET /api/comparison/glider?glider_id={id}&limit=100&offset=0
+export interface GliderComparisonRecord {
+  glider_id: string;
+  observation_time: string;
+  latitude: number;
+  longitude: number;
+  depth: number;
+  temperature: ParameterComparisonValue;
+  salinity: ParameterComparisonValue;
+}
+
+export interface GliderComparisonResponse {
+  count: number;
+  limit: number;
+  offset: number;
+  comparisons: GliderComparisonRecord[];
+}
+
+// Comparison Summary Metric Group (Temperature / Salinity)
+export interface ComparisonSummaryMetricGroup {
+  valid_comparisons: number;
+  bias: number;
+  mae: number;
+  rmse: number;
+}
+
+// Comparison Summary Response (ARGO & Glider)
+export interface ComparisonSummaryResponse {
+  dataset: string;
+  observation_source: string;
+  glider_id?: string;
+  temperature: ComparisonSummaryMetricGroup;
+  salinity: ComparisonSummaryMetricGroup;
+}
+
+// ── Shared Domain & Component Interfaces ─────────────────────────────────────
+
+export interface ObservationDatasetOption {
+  id: string;
+  label: string;
+  platform: PlatformType;
+  region: RegionOption;
+  date: string;
+  depthRange: string;
+  parameters: string[];
+}
+
+export interface WorkflowFilterState {
+  platform: PlatformType;
+  region: RegionOption;
+  datasetId: string;
+}
+
+export interface ModelVsObsComparisonPayload {
+  workflow: PlatformType;
+  region: RegionOption;
+  datasetId: string;
+  datasetLabel: string;
+  modelName: string;
+  modelGridId: string;
+  forecastTime: string;
+  comparisonData: {
+    depthProfile?: { depth: number; modelValue: number; obsValue: number }[];
+    timeSeries?: { timestamp: string; modelValue: number; obsValue: number }[];
+  };
+  summary: {
+    bias?: number;
+    rmse?: number;
+    mae?: number;
+    correlation?: number;
+    skillScore?: number;
+    sampleCount?: number;
+    notes?: string;
+  };
+}
+
+// ── Legacy Component Interfaces (Kept for full build compatibility) ───────────
+
 export interface ModelVsObservedComparison {
   timestamp: string;
   observedSst: number;
@@ -25,7 +162,6 @@ export interface ComparisonScenario {
   timeSeries: ModelVsObservedComparison[];
 }
 
-// ── Filter state ─────────────────────────────────────────────────────────────
 export type ComparisonVariable = 'temperature' | 'salinity' | 'current_speed';
 export type ComparisonRegion =
   | 'arabian_sea'
@@ -35,15 +171,14 @@ export type ComparisonRegion =
   | 'indian_ocean';
 
 export interface ComparisonFilterState {
-  model: string;          // e.g. 'hycom_as'
-  observationSource: string; // e.g. 'argo_floats'
+  model: string;
+  observationSource: string;
   variable: ComparisonVariable;
   region: ComparisonRegion;
-  depth: number;          // metres
-  date: string;           // ISO date string
+  depth: number;
+  date: string;
 }
 
-// ── Model & observation options ───────────────────────────────────────────────
 export interface ModelOption {
   id: string;
   label: string;
@@ -68,26 +203,24 @@ export interface ComparisonOptions {
   depths: number[];
 }
 
-// ── Profile data ─────────────────────────────────────────────────────────────
 export interface TemperatureProfilePoint {
-  depth: number;       // metres (positive = deeper)
-  modelTemp: number;   // °C
-  obsTemp: number;     // °C
+  depth: number;
+  modelTemp: number;
+  obsTemp: number;
 }
 
 export interface SalinityProfilePoint {
   depth: number;
-  modelSalinity: number; // PSU
-  obsSalinity: number;   // PSU
+  modelSalinity: number;
+  obsSalinity: number;
 }
 
-// ── Model data card ───────────────────────────────────────────────────────────
 export interface ModelDataCard {
   modelId: string;
   modelLabel: string;
   gridId: string;
-  forecastTime: string;   // ISO datetime
-  initTime: string;       // ISO datetime
+  forecastTime: string;
+  initTime: string;
   lat: number;
   lon: number;
   resolution: string;
@@ -97,11 +230,10 @@ export interface ModelDataCard {
   currentSpeed: number | null;
 }
 
-// ── Observation data card ─────────────────────────────────────────────────────
 export interface ObservationDataCard {
   platformId: string;
   platformLabel: string;
-  observationTime: string; // ISO datetime
+  observationTime: string;
   lat: number;
   lon: number;
   depth: number;
@@ -111,7 +243,6 @@ export interface ObservationDataCard {
   qcFlag: 'good' | 'probably_good' | 'bad' | 'missing';
 }
 
-// ── Model grid match ──────────────────────────────────────────────────────────
 export interface ModelGridInfo {
   gridId: string;
   gridLat: number;
@@ -122,7 +253,6 @@ export interface ModelGridInfo {
   temporalOffsetHours: number;
 }
 
-// ── Comparison metrics ────────────────────────────────────────────────────────
 export interface ComparisonMetrics {
   variable: ComparisonVariable;
   unit: string;
@@ -134,7 +264,6 @@ export interface ComparisonMetrics {
   sampleCount: number;
 }
 
-// ── Bias analysis ─────────────────────────────────────────────────────────────
 export interface BiasPoint {
   variable: string;
   unit: string;
@@ -147,7 +276,6 @@ export interface BiasAnalysis {
   summary: string;
 }
 
-// ── Complete comparison data ──────────────────────────────────────────────────
 export interface CompleteComparisonData {
   filters: ComparisonFilterState;
   modelData: ModelDataCard;

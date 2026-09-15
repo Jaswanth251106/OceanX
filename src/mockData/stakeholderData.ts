@@ -53,7 +53,7 @@ export const mockStakeholderPersonas: StakeholderPersona[] = [
     primaryTools: ['Coastal Vulnerability Index', 'Marine Protected Area Analytics', 'Port & Shipping Traffic Density', 'Disaster Preparedness Scorecard'],
     sampleAdvisories: [
       'Coastal Resilience Index 2026: Low-elevation coastal zones in Sunderbans require fortified embankments.',
-      'Blue Economy indicator: Port traffic efficiency improved by 14% with INCOIS ocean state routing.',
+      'Blue Economy indicator: Port traffic efficiency improved by 14% with OceanX ocean state routing.',
     ],
   },
   {

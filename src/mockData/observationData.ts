@@ -131,7 +131,7 @@ export const mockObservationRecords: OceanObservationRecord[] = [
   {
     id: 'OBS-IN-MB-008',
     instrumentId: 'IN-MB-008',
-    name: 'INCOIS OMNI Moored Buoy BD08',
+    name: 'OMNI Moored Buoy BD08',
     platform: 'Moored Buoy',
     type: 'moored-buoy',
     region: 'Bay of Bengal',

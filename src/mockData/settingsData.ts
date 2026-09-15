@@ -3,16 +3,25 @@ import { SettingsData } from '../types/settings';
 export const mockSettingsData: SettingsData = {
   preferences: {
     theme: 'light',
+    compactMode: false,
+    reduceMotion: false,
+    language: 'en-US',
+    timeFormat: '12h',
+    dateFormat: 'YYYY-MM-DD',
+    notificationsEnabled: true,
+    importantAlerts: true,
+    systemNotifications: true,
+    textSize: 'default',
+    interfaceDensity: 'comfortable',
     preferredUnits: 'metric',
     depthScale: 'meters',
     coordinateFormat: 'decimal',
     autoRefreshIntervalSeconds: 60,
-    language: 'en',
     emailNotifications: true,
   },
   systemHealth: [
     {
-      serviceName: 'INCOIS Live Telemetry Feed (OMNI/RAMA)',
+      serviceName: 'Live Telemetry Feed (OMNI/RAMA)',
       endpoint: 'https://incois.gov.in/api/v1/telemetry/buoys',
       status: 'healthy',
       latencyMs: 42,

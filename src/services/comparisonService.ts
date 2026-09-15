@@ -1,81 +1,88 @@
-import { apiClient } from './apiClient';
 import {
-  mockComparisonData,
-  mockComparisonOptions,
-  mockCompleteComparisonData,
-} from '../mockData/comparisonData';
-import {
-  ComparisonScenario,
-  ComparisonOptions,
-  CompleteComparisonData,
-  ComparisonFilterState,
-  ComparisonMetrics,
-  BiasAnalysis,
-  TemperatureProfilePoint,
-  SalinityProfilePoint,
+  ArgoFloatsResponse,
+  GlidersResponse,
+  ArgoComparisonResponse,
+  GliderComparisonResponse,
+  ComparisonSummaryResponse,
 } from '../types/comparison';
 
+export const API_BASE_URL = 'https://sih2026-oceanx.onrender.com';
+
 export const comparisonService = {
-  // ── Legacy ────────────────────────────────────────────────────────────────
-  async getComparisonScenarios(): Promise<ComparisonScenario[]> {
-    const res = await apiClient.get<ComparisonScenario[]>(
-      '/api/comparison/scenarios',
-      mockComparisonData,
-    );
-    return res.data;
+  // ── ARGO ENDPOINTS ──────────────────────────────────────────────────────────
+  
+  // 1. Fetch ARGO platform list (21 floats)
+  async getArgoFloats(): Promise<ArgoFloatsResponse> {
+    const res = await fetch(`${API_BASE_URL}/api/argo/floats`);
+    if (!res.ok) {
+      throw new Error(`Failed to fetch ARGO floats: ${res.statusText} (${res.status})`);
+    }
+    return res.json();
   },
 
-  async getScenarioById(id: string): Promise<ComparisonScenario | undefined> {
-    const scenarios = await this.getComparisonScenarios();
-    return scenarios.find((s) => s.id === id);
+  // 2. Fetch ARGO comparison data for a selected platform_id with pagination
+  async getArgoComparisons(
+    platform_id: string,
+    limit: number = 100,
+    offset: number = 0,
+  ): Promise<ArgoComparisonResponse> {
+    const params = new URLSearchParams({
+      platform_id,
+      limit: limit.toString(),
+      offset: offset.toString(),
+    });
+    const res = await fetch(`${API_BASE_URL}/api/comparison/argo?${params.toString()}`);
+    if (!res.ok) {
+      throw new Error(`Failed to fetch ARGO comparison data: ${res.statusText} (${res.status})`);
+    }
+    return res.json();
   },
 
-  // ── New ───────────────────────────────────────────────────────────────────
-  async getComparisonOptions(): Promise<ComparisonOptions> {
-    const res = await apiClient.get<ComparisonOptions>(
-      '/api/comparison/options',
-      mockComparisonOptions,
-    );
-    return res.data;
+  // 3. Fetch ARGO comparison summary
+  async getArgoSummary(): Promise<ComparisonSummaryResponse> {
+    const res = await fetch(`${API_BASE_URL}/api/comparison/argo/summary`);
+    if (!res.ok) {
+      throw new Error(`Failed to fetch ARGO comparison summary: ${res.statusText} (${res.status})`);
+    }
+    return res.json();
   },
 
-  async getComparisonData(
-    _filters: ComparisonFilterState,
-  ): Promise<CompleteComparisonData> {
-    // In production _filters would be passed as query params.
-    // For now the mock always returns the Arabian Sea / HYCOM / Argo dataset.
-    const res = await apiClient.get<CompleteComparisonData>(
-      '/api/comparison/data',
-      mockCompleteComparisonData,
-    );
-    return res.data;
+  // ── GLIDER ENDPOINTS ────────────────────────────────────────────────────────
+
+  // 1. Fetch Glider platform list (5 gliders)
+  async getGliders(): Promise<GlidersResponse> {
+    const res = await fetch(`${API_BASE_URL}/api/glider/gliders`);
+    if (!res.ok) {
+      throw new Error(`Failed to fetch Gliders: ${res.statusText} (${res.status})`);
+    }
+    return res.json();
   },
 
-  async getTemperatureProfile(
-    _filters: ComparisonFilterState,
-  ): Promise<TemperatureProfilePoint[]> {
-    const data = await this.getComparisonData(_filters);
-    return data.temperatureProfile;
+  // 2. Fetch Glider comparison data for a selected glider_id with pagination
+  async getGliderComparisons(
+    glider_id: string,
+    limit: number = 100,
+    offset: number = 0,
+  ): Promise<GliderComparisonResponse> {
+    const params = new URLSearchParams({
+      glider_id,
+      limit: limit.toString(),
+      offset: offset.toString(),
+    });
+    const res = await fetch(`${API_BASE_URL}/api/comparison/glider?${params.toString()}`);
+    if (!res.ok) {
+      throw new Error(`Failed to fetch Glider comparison data: ${res.statusText} (${res.status})`);
+    }
+    return res.json();
   },
 
-  async getSalinityProfile(
-    _filters: ComparisonFilterState,
-  ): Promise<SalinityProfilePoint[]> {
-    const data = await this.getComparisonData(_filters);
-    return data.salinityProfile;
-  },
-
-  async getComparisonMetrics(
-    _filters: ComparisonFilterState,
-  ): Promise<ComparisonMetrics> {
-    const data = await this.getComparisonData(_filters);
-    return data.metrics;
-  },
-
-  async getBiasAnalysis(
-    _filters: ComparisonFilterState,
-  ): Promise<BiasAnalysis> {
-    const data = await this.getComparisonData(_filters);
-    return data.biasAnalysis;
+  // 3. Fetch Glider comparison summary for selected glider_id
+  async getGliderSummary(glider_id: string): Promise<ComparisonSummaryResponse> {
+    const params = new URLSearchParams({ glider_id });
+    const res = await fetch(`${API_BASE_URL}/api/comparison/glider/summary?${params.toString()}`);
+    if (!res.ok) {
+      throw new Error(`Failed to fetch Glider comparison summary: ${res.statusText} (${res.status})`);
+    }
+    return res.json();
   },
 };

@@ -1,11 +1,31 @@
+export type ThemeOption = 'light' | 'dark' | 'system';
+export type TimeFormatOption = '12h' | '24h';
+export type DateFormatOption = 'YYYY-MM-DD' | 'DD/MM/YYYY' | 'MM/DD/YYYY';
+export type TextSizeOption = 'small' | 'default' | 'large';
+export type InterfaceDensityOption = 'comfortable' | 'compact';
+
 export interface UserPreference {
-  theme: 'light' | 'system';
-  preferredUnits: 'metric' | 'nautical' | 'scientific';
-  depthScale: 'meters' | 'fathoms';
-  coordinateFormat: 'decimal' | 'dms';
-  autoRefreshIntervalSeconds: number;
+  theme: ThemeOption;
+  compactMode: boolean;
+  reduceMotion: boolean;
+
   language: string;
-  emailNotifications: boolean;
+  timeFormat: TimeFormatOption;
+  dateFormat: DateFormatOption;
+
+  notificationsEnabled: boolean;
+  importantAlerts: boolean;
+  systemNotifications: boolean;
+
+  textSize: TextSizeOption;
+  interfaceDensity: InterfaceDensityOption;
+
+  // Legacy fields preserved for backward compatibility
+  preferredUnits?: 'metric' | 'nautical' | 'scientific';
+  depthScale?: 'meters' | 'fathoms';
+  coordinateFormat?: 'decimal' | 'dms';
+  autoRefreshIntervalSeconds?: number;
+  emailNotifications?: boolean;
 }
 
 export interface SystemHealthStatus {

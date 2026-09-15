@@ -2,17 +2,21 @@ import React, { useState, useEffect } from 'react';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { settingsService } from '../../services/settingsService';
 import { UserPreference } from '../../types/settings';
+import { applyTheme } from '../../theme/themeHelper';
 
 // Sub-components
-import { ProfileSettings } from './components/ProfileSettings';
 import { AppearanceSettings } from './components/AppearanceSettings';
-import { GeneralSettings } from './components/GeneralSettings';
+import { LanguageRegionSettings } from './components/LanguageRegionSettings';
+import { NotificationsSettings } from './components/NotificationsSettings';
+import { DisplaySettings } from './components/DisplaySettings';
+import { PrivacyDataSettings } from './components/PrivacyDataSettings';
+import { AboutSettings } from './components/AboutSettings';
 
 export const SettingsPage: React.FC = () => {
   const [preferences, setPreferences] = useState<UserPreference | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
-  const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -20,6 +24,9 @@ export const SettingsPage: React.FC = () => {
       try {
         const data = await settingsService.getSettingsData();
         setPreferences(data.preferences);
+        if (data.preferences?.theme) {
+          applyTheme(data.preferences.theme);
+        }
       } catch (err) {
         console.error('Failed to load settings', err);
       } finally {
@@ -31,8 +38,27 @@ export const SettingsPage: React.FC = () => {
 
   const handleChange = (key: keyof UserPreference, value: any) => {
     if (!preferences) return;
-    setPreferences({ ...preferences, [key]: value });
-    setSaveMessage(null); // Clear message on new edits
+    const updated = { ...preferences, [key]: value };
+    setPreferences(updated);
+    setSaveMessage(null);
+  };
+
+  const handleResetDefaults = () => {
+    const defaultPrefs: UserPreference = {
+      theme: 'light',
+      compactMode: false,
+      reduceMotion: false,
+      language: 'en-US',
+      timeFormat: '12h',
+      dateFormat: 'YYYY-MM-DD',
+      notificationsEnabled: true,
+      importantAlerts: true,
+      systemNotifications: true,
+      textSize: 'default',
+      interfaceDensity: 'comfortable',
+    };
+    setPreferences(defaultPrefs);
+    applyTheme('light');
   };
 
   const handleSave = async () => {
@@ -41,6 +67,7 @@ export const SettingsPage: React.FC = () => {
     setSaveMessage(null);
     try {
       await settingsService.updatePreferences(preferences);
+      applyTheme(preferences.theme);
       setSaveMessage({ type: 'success', text: 'Settings saved successfully.' });
     } catch (err) {
       console.error('Failed to save settings', err);
@@ -52,7 +79,7 @@ export const SettingsPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div style={{ padding: '2rem', maxWidth: 800, margin: '0 auto', textAlign: 'center', color: '#5a7184' }}>
+      <div style={{ padding: '2rem', maxWidth: 840, margin: '0 auto', textAlign: 'center', color: 'var(--color-text-secondary, #58708A)' }}>
         Loading settings...
       </div>
     );
@@ -60,53 +87,75 @@ export const SettingsPage: React.FC = () => {
 
   if (!preferences) {
     return (
-      <div style={{ padding: '2rem', maxWidth: 800, margin: '0 auto', textAlign: 'center', color: '#E5484D' }}>
+      <div style={{ padding: '2rem', maxWidth: 840, margin: '0 auto', textAlign: 'center', color: 'var(--color-danger, #E5484D)' }}>
         Error loading settings.
       </div>
     );
   }
 
   return (
-    <div style={{ padding: '2rem', maxWidth: 800, margin: '0 auto', display: 'flex', flexDirection: 'column' }}>
-      <PageHeader 
-        title="Settings" 
-        subtitle="Manage your account, appearance, and system preferences" 
+    <div style={{ padding: '1.5rem 2rem 3rem 2rem', maxWidth: 880, margin: '0 auto', display: 'flex', flexDirection: 'column' }}>
+      <PageHeader
+        title="Settings"
+        subtitle="Manage general application preferences, appearance, display density, and notification alerts"
       />
 
-      <div style={{ marginTop: '2rem', flex: 1 }}>
-        <ProfileSettings />
-        
-        <div style={{ display: 'flex', gap: '1.5rem', flexDirection: 'column' }}>
-          <AppearanceSettings preferences={preferences} onChange={handleChange} />
-          <GeneralSettings preferences={preferences} onChange={handleChange} />
-        </div>
+      <div style={{ marginTop: '1.5rem', flex: 1 }}>
+        <AppearanceSettings preferences={preferences} onChange={handleChange} />
+        <LanguageRegionSettings preferences={preferences} onChange={handleChange} />
+        <NotificationsSettings preferences={preferences} onChange={handleChange} />
+        <DisplaySettings preferences={preferences} onChange={handleChange} />
+        <PrivacyDataSettings onResetDefaults={handleResetDefaults} />
+        <AboutSettings />
       </div>
 
-      <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '1rem' }}>
-        {saveMessage && (
-          <div style={{ fontSize: '0.85rem', fontWeight: 600, color: saveMessage.type === 'success' ? '#22A06B' : '#E5484D' }}>
-            {saveMessage.type === 'success' ? '✓ ' : '⚠️ '}{saveMessage.text}
-          </div>
-        )}
-        <button 
-          onClick={handleSave} 
+      {/* Save Floating Action Bar */}
+      <div
+        style={{
+          position: 'sticky',
+          bottom: '1rem',
+          backgroundColor: 'var(--color-bg-card, #FFFFFF)',
+          border: '1px solid var(--color-border, #D5E5EF)',
+          borderRadius: '12px',
+          padding: '1rem 1.5rem',
+          boxShadow: 'var(--shadow-lg, 0 12px 24px -4px rgba(6, 43, 79, 0.12))',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '1rem',
+          zIndex: 10,
+        }}
+      >
+        <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary, #58708A)' }}>
+          {saveMessage ? (
+            <span style={{ fontWeight: 600, color: saveMessage.type === 'success' ? '#0E9F9A' : '#E5484D' }}>
+              {saveMessage.type === 'success' ? '✓ ' : '⚠️ '}
+              {saveMessage.text}
+            </span>
+          ) : (
+            'Unsaved changes are applied immediately, click save to persist.'
+          )}
+        </div>
+
+        <button
+          onClick={handleSave}
           disabled={saving}
           style={{
-            background: saving ? '#90b8d8' : '#087FEA',
-            color: '#fff',
+            backgroundColor: saving ? '#90b8d8' : 'var(--color-ocean-blue, #087FEA)',
+            color: '#FFFFFF',
             border: 'none',
-            padding: '0.6rem 1.5rem',
-            borderRadius: '6px',
-            fontWeight: 600,
+            padding: '0.65rem 1.8rem',
+            borderRadius: '8px',
+            fontWeight: 700,
             fontSize: '0.9rem',
             cursor: saving ? 'not-allowed' : 'pointer',
-            transition: 'background 0.2s'
+            transition: 'background-color 0.2s ease',
+            boxShadow: '0 4px 12px rgba(8, 127, 234, 0.25)',
           }}
         >
           {saving ? 'Saving...' : 'Save Changes'}
         </button>
       </div>
-
     </div>
   );
 };

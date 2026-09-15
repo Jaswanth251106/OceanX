@@ -1,8 +1,6 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import {
-  Bell,
-  HelpCircle,
   Compass,
   LayoutDashboard,
   Waves,
@@ -11,7 +9,6 @@ import {
   Users,
   Settings,
 } from 'lucide-react';
-import { IconButton } from '../common/IconButton';
 
 export interface NavbarProps {
   onToggleSidebar?: () => void;
@@ -24,16 +21,28 @@ export const navItems = [
   { path: '/compare', label: 'Compare', icon: GitCompare },
   { path: '/analytics', label: 'Analytics', icon: BarChart3 },
   { path: '/stakeholders', label: 'Stakeholders', icon: Users },
-  { path: '/settings', label: 'Settings', icon: Settings },
 ];
 
+const getPageTitle = (pathname: string): string => {
+  if (pathname.includes('/explore')) return 'Explore';
+  if (pathname.includes('/observations')) return 'Observations';
+  if (pathname.includes('/compare')) return 'Compare';
+  if (pathname.includes('/analytics')) return 'Analytics';
+  if (pathname.includes('/stakeholders')) return 'Stakeholders';
+  if (pathname.includes('/settings')) return 'Settings';
+  return 'Dashboard';
+};
+
 export const Navbar: React.FC<NavbarProps> = () => {
+  const location = useLocation();
   return (
     <header
       style={{
         height: 'var(--header-height)',
-        backgroundColor: 'var(--color-bg-card)',
-        borderBottom: '1px solid var(--color-border)',
+        backgroundColor: 'rgba(255, 255, 255, 0.85)',
+        backdropFilter: 'blur(12px)',
+        borderBottom: '2px solid transparent',
+        borderImage: 'linear-gradient(90deg, var(--color-cyan) 0%, var(--color-ocean-blue) 50%, var(--color-marine-teal) 100%) 1',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
@@ -41,190 +50,109 @@ export const Navbar: React.FC<NavbarProps> = () => {
         position: 'sticky',
         top: 0,
         zIndex: 100,
-        boxShadow: 'var(--shadow-sm)',
+        boxShadow: '0 8px 32px -4px rgba(6, 43, 79, 0.08)',
       }}
     >
-      {/* Left: Branding */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {/* Scientific Ocean Emblem */}
-          <div
-            style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: 'var(--radius-md)',
-              background: 'linear-gradient(135deg, var(--color-primary-navy) 0%, var(--color-ocean-blue) 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#FFFFFF',
-              fontWeight: 800,
-              fontSize: '18px',
-              boxShadow: '0 2px 6px rgba(11, 42, 74, 0.2)',
-            }}
-          >
-            🌊
-          </div>
+      {/* Left: Branding + Left-aligned Page Title */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+        <NavLink
+          to="/dashboard"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '16px',
+            textDecoration: 'none',
+            cursor: 'pointer',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {/* Scientific Ocean Emblem */}
+            <div
+              style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: 'var(--radius-md)',
+                background: 'linear-gradient(135deg, var(--color-primary-navy) 0%, var(--color-ocean-blue) 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#FFFFFF',
+                fontWeight: 800,
+                fontSize: '18px',
+                boxShadow: '0 2px 6px rgba(11, 42, 74, 0.2)',
+              }}
+            >
+              🌊
+            </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
               <span
                 style={{
                   fontSize: 'var(--font-size-xs)',
-                  fontWeight: 700,
+                  fontWeight: 800,
                   letterSpacing: '0.08em',
                   color: 'var(--color-ocean-blue)',
                   textTransform: 'uppercase',
                 }}
               >
-                INCOIS
-              </span>
-              <span style={{ fontSize: '10px', color: 'var(--color-border)' }}>|</span>
-              <span
-                style={{
-                  fontSize: 'var(--font-size-xs)',
-                  fontWeight: 600,
-                  color: 'var(--color-text-secondary)',
-                  letterSpacing: '0.04em',
-                }}
-              >
                 OCEANX
               </span>
+              <span
+                style={{
+                  fontSize: 'var(--font-size-sm)',
+                  fontWeight: 700,
+                  color: 'var(--color-deep-navy)',
+                  letterSpacing: '-0.01em',
+                }}
+              >
+                3D Ocean Explorer
+              </span>
             </div>
-            <span
-              style={{
-                fontSize: 'var(--font-size-sm)',
-                fontWeight: 700,
-                color: 'var(--color-deep-navy)',
-                letterSpacing: '-0.01em',
-              }}
-            >
-              3D Ocean Explorer
-            </span>
           </div>
-        </div>
-      </div>
+        </NavLink>
 
-      {/* Middle: Horizontal Nav items */}
-      <nav
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '4px',
-          height: '100%',
-        }}
-        className="ocean-nav-links"
-      >
-        {navItems.map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            style={({ isActive }) => ({
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              height: '100%',
-              padding: '0 12px',
-              fontSize: 'var(--font-size-sm)',
-              fontWeight: isActive ? 600 : 500,
-              color: isActive ? 'var(--color-ocean-blue)' : 'var(--color-text-secondary)',
-              borderBottom: isActive ? '3px solid var(--color-ocean-blue)' : '3px solid transparent',
-              textDecoration: 'none',
-              transition: 'color var(--transition-fast), border-color var(--transition-fast)',
-              backgroundColor: 'transparent',
-            })}
-          >
-            {item.label}
-          </NavLink>
-        ))}
-      </nav>
-
-      {/* Right: Actions, Notifications, Help, Profile */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-        {/* Help button */}
-        <IconButton
-          icon={<HelpCircle size={18} />}
-          label="INCOIS Documentation & Help"
-          variant="ghost"
-        />
-
-        {/* Notification bell with active pill */}
-        <div style={{ position: 'relative' }}>
-          <IconButton
-            icon={<Bell size={18} />}
-            label="Operational Alerts & Telemetry Notifications"
-            variant="ghost"
-          />
-          <span
-            style={{
-              position: 'absolute',
-              top: '6px',
-              right: '6px',
-              width: '8px',
-              height: '8px',
-              backgroundColor: 'var(--color-danger)',
-              borderRadius: '50%',
-              border: '2px solid var(--color-bg-card)',
-            }}
-          />
-        </div>
-
-        {/* Divider */}
+        {/* Vertical Divider */}
         <div
           style={{
             width: '1px',
             height: '24px',
             backgroundColor: 'var(--color-border)',
-            margin: '0 4px',
           }}
         />
 
-        {/* User profile avatar */}
-        <div
+        {/* Left-Aligned Current Page Title */}
+        <span
           style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            cursor: 'pointer',
-            padding: '4px 8px',
-            borderRadius: 'var(--radius-md)',
-            transition: 'background-color var(--transition-fast)',
+            fontSize: '1.15rem',
+            fontWeight: 700,
+            color: 'var(--color-primary-navy)',
+            letterSpacing: '-0.01em',
           }}
-          title="Scientist Profile (INCOIS Hyderabad)"
         >
-          <div
-            style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '50%',
-              backgroundColor: 'var(--color-light-blue)',
-              border: '1.5px solid var(--color-ocean-blue)',
-              color: 'var(--color-ocean-blue)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 'var(--font-size-xs)',
-              fontWeight: 700,
-            }}
-          >
-            IN
-          </div>
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              lineHeight: 1.1,
-            }}
-          >
-            <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-              Dr. Scientist
-            </span>
-            <span style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>
-              INCOIS Ocean Lead
-            </span>
-          </div>
-        </div>
+          {getPageTitle(location.pathname)}
+        </span>
       </div>
+
+      {/* Right: Settings gear icon ONLY */}
+      <NavLink
+        to="/settings"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: '36px',
+          height: '36px',
+          borderRadius: '50%',
+          backgroundColor: 'var(--color-bg-page)',
+          border: '1px solid var(--color-border)',
+          color: 'var(--color-primary-navy)',
+          textDecoration: 'none',
+          transition: 'all 0.2s ease',
+        }}
+        title="Settings"
+      >
+        <Settings size={18} />
+      </NavLink>
     </header>
   );
 };

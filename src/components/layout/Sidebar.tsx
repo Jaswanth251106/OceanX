@@ -1,5 +1,5 @@
-import React from 'react';
-import { NavLink } from 'react-router-dom';
+import React, { useState } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import { navItems } from './Navbar';
 
 export interface SidebarProps {
@@ -7,9 +7,23 @@ export interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ collapsed = false }) => {
+  const location = useLocation();
+  const isExplore = location.pathname === '/explore';
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   return (
     <aside
+      onMouseEnter={() => {
+        if (isExplore) setSidebarOpen(true);
+      }}
+      onMouseLeave={() => {
+        if (isExplore) setSidebarOpen(false);
+      }}
       style={{
+        position: isExplore ? 'fixed' : 'relative',
+        left: 0,
+        top: isExplore ? '64px' : undefined,
+        bottom: isExplore ? 0 : undefined,
         width: collapsed ? 'var(--sidebar-collapsed-width)' : 'var(--sidebar-width)',
         backgroundColor: 'var(--color-deep-navy)',
         backgroundImage: 'linear-gradient(180deg, var(--color-deep-navy) 0%, var(--color-primary-navy) 100%)',
@@ -18,11 +32,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed = false }) => {
         flexDirection: 'column',
         justifyContent: 'space-between',
         padding: 'var(--space-4) var(--space-3)',
-        transition: 'width var(--transition-normal)',
+        transition: 'transform 220ms ease, width var(--transition-normal)',
         flexShrink: 0,
         color: '#FFFFFF',
-        position: 'relative',
-        overflow: 'hidden'
+        zIndex: 300,
+        overflow: 'hidden',
+        transform: isExplore && !sidebarOpen ? 'translateX(calc(-100% + 10px))' : 'translateX(0)',
+        boxShadow: isExplore && sidebarOpen ? '6px 0 24px rgba(0,0,0,0.18)' : 'none',
       }}
     >
       {/* Subtle Sidebar Water Texture Overlay & Wave Lines */}

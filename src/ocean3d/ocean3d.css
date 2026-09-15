@@ -1,0 +1,162 @@
+@import "tailwindcss";
+
+/* ================================
+   OCEAN 3D ISOLATED UI
+================================ */
+
+.ocean3d-root {
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+/* -------------------------------
+   VISUALIZATION CONTROLS
+-------------------------------- */
+
+.ocean3d-root .ocean-controls-card {
+  width: 320px !important;
+  box-sizing: border-box !important;
+
+  max-height: calc(100vh - 96px) !important;
+
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+
+  padding: 16px !important;
+
+  background: rgba(255, 255, 255, 0.97) !important;
+
+  border: 1px solid #d7e1ea !important;
+  border-radius: 12px !important;
+
+  box-shadow: 0 8px 30px rgba(15, 23, 42, 0.16) !important;
+
+  color: #152235 !important;
+
+  line-height: 1.35 !important;
+
+  backdrop-filter: blur(14px);
+}
+
+/* scrollbar exactly like previous panel */
+.ocean3d-root .ocean-controls-card::-webkit-scrollbar {
+  width: 7px;
+}
+
+.ocean3d-root .ocean-controls-card::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ocean3d-root .ocean-controls-card::-webkit-scrollbar-thumb {
+  background: #a3a3a3;
+  border-radius: 10px;
+}
+
+/* -------------------------------
+   LABELS
+-------------------------------- */
+
+.ocean3d-root .ocean-controls-card label {
+  line-height: 1.2 !important;
+}
+
+/* -------------------------------
+   SELECTS
+-------------------------------- */
+
+.ocean3d-root .ocean-control-select {
+  display: block !important;
+
+  width: 100% !important;
+  height: 36px !important;
+
+  box-sizing: border-box !important;
+
+  margin: 0 !important;
+  padding: 0 12px !important;
+
+  border: 1px solid #d7e1ea !important;
+  border-radius: 99px !important;
+  border-radius: 9px !important;
+
+  background-color: #ffffff !important;
+
+  color: #152235 !important;
+
+  font-family: inherit !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+
+  line-height: 34px !important;
+
+  appearance: auto !important;
+}
+
+/* Restore the spacing visible in your reference */
+.ocean3d-root .ocean-controls-card .space-y-3 > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 12px !important;
+}
+
+/* -------------------------------
+   RANGE SLIDERS
+-------------------------------- */
+
+.ocean3d-root .ocean-control-range {
+  display: block !important;
+
+  width: 100% !important;
+  height: 6px !important;
+
+  margin: 8px 0 0 0 !important;
+  padding: 0 !important;
+
+  border: 0 !important;
+  border-radius: 999px !important;
+
+  background: #eaf1f6 !important;
+
+  cursor: pointer !important;
+
+  accent-color: #1479f6 !important;
+}
+
+/* -------------------------------
+   BUTTONS
+-------------------------------- */
+
+.ocean3d-root .ocean-controls-card button {
+  font-family: inherit !important;
+  line-height: 1.25 !important;
+}
+
+/* -------------------------------
+   TOGGLE SWITCHES
+-------------------------------- */
+
+.ocean3d-root .ocean-controls-card input[type="checkbox"] {
+  margin: 0 !important;
+}
+
+/* -------------------------------
+   SELECTED INSTRUMENT
+-------------------------------- */
+
+.ocean3d-root .ocean-instrument-card {
+  width: 320px !important;
+
+  box-sizing: border-box !important;
+
+  padding: 16px !important;
+
+  background: rgba(255, 255, 255, 0.97) !important;
+
+  border: 1px solid #d7e1ea !important;
+  border-radius: 12px !important;
+
+  box-shadow: 0 8px 30px rgba(15, 23, 42, 0.16) !important;
+
+  color: #152235 !important;
+
+  line-height: 1.35 !important;
+
+  backdrop-filter: blur(14px);
+}

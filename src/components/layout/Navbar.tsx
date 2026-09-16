@@ -3,7 +3,6 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
   Compass,
   LayoutDashboard,
-  Waves,
   GitCompare,
   BarChart3,
   Users,
@@ -17,7 +16,6 @@ export interface NavbarProps {
 export const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/explore', label: 'Explore', icon: Compass },
-  { path: '/observations', label: 'Observations', icon: Waves },
   { path: '/compare', label: 'Compare', icon: GitCompare },
   { path: '/analytics', label: 'Analytics', icon: BarChart3 },
   { path: '/stakeholders', label: 'Stakeholders', icon: Users },

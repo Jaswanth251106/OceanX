@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Waves, GitCompare, BarChart3, Users, ArrowRight, ShieldCheck } from 'lucide-react';
+import { GitCompare, BarChart3, Users, ArrowRight, ShieldCheck } from 'lucide-react';
 import oceanViz from '../../asstes/ocean-visualization.jpeg';
 
 export const DashboardPage: React.FC = () => {
@@ -153,22 +153,14 @@ export const DashboardPage: React.FC = () => {
         />
       </div>
 
-      {/* 3. BOTTOM 40% — 4 MODULE CARDS IN ONE HORIZONTAL ROW */}
+      {/* 3. BOTTOM 40% — 3 MODULE CARDS IN ONE HORIZONTAL ROW */}
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
+          gridTemplateColumns: 'repeat(3, 1fr)',
           gap: '1.25rem',
         }}
       >
-        {/* Module 1: Observations */}
-        <ModuleNavCard
-          title="Observations"
-          description="Explore in-situ observations from Argo, Gliders and other ocean monitoring platforms."
-          icon={<Waves size={24} color="#0E9F9A" />}
-          accentColor="#0E9F9A"
-          onClick={() => navigate('/observations')}
-        />
 
         {/* Module 2: Compare */}
         <ModuleNavCard

@@ -1,4 +1,4 @@
-const BASE_URL = 'http://10.101.5.53:8000';
+const BASE_URL = 'https://sih2026-oceanx.onrender.com';
 
 export type ScalarVariable = 'thetao' | 'so' | 'chlorophyll';
 export type ModelVariable = ScalarVariable | 'uo' | 'vo';

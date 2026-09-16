@@ -7,7 +7,6 @@ import {
   ApiTemperaturePoint,
   ApiSalinityDepthPoint,
   ApiModelPerformance,
-  ApiAnomaly,
 } from '../../types/analytics';
 
 // Sub-components
@@ -16,8 +15,6 @@ import { AnalyticsKPIGrid } from './components/AnalyticsKPIGrid';
 import { TemperatureTrendChart } from './components/TemperatureTrendChart';
 import { SalinityTrendChart } from './components/SalinityTrendChart';
 import { ModelPerformanceChart } from './components/ModelPerformanceChart';
-import { AnomalySummaryPanel } from './components/AnomalySummaryPanel';
-import { RecentInsightsPanel } from './components/RecentInsightsPanel';
 
 /**
  * Each API section has its own loading/error/data state,
@@ -46,7 +43,6 @@ export const AnalyticsPage: React.FC = () => {
   const [tempTrend, setTempTrend] = useState<SectionState<ApiTemperaturePoint[]>>(initial);
   const [salinityDepth, setSalinityDepth] = useState<SectionState<ApiSalinityDepthPoint[]>>(initial);
   const [modelPerf, setModelPerf] = useState<SectionState<ApiModelPerformance>>(initial);
-  const [anomalies, setAnomalies] = useState<SectionState<ApiAnomaly[]>>(initial);
 
   const fetchAll = useCallback(async () => {
     // Mark all as loading
@@ -54,9 +50,8 @@ export const AnalyticsPage: React.FC = () => {
     setTempTrend((s) => ({ ...s, loading: true, error: null }));
     setSalinityDepth((s) => ({ ...s, loading: true, error: null }));
     setModelPerf((s) => ({ ...s, loading: true, error: null }));
-    setAnomalies((s) => ({ ...s, loading: true, error: null }));
 
-    // Fire all 5 requests in parallel — independent error handling
+    // Fire all 4 requests in parallel — independent error handling
     analyticsService
       .getSummary()
       .then((data) => setSummary({ data, loading: false, error: null }))
@@ -76,11 +71,6 @@ export const AnalyticsPage: React.FC = () => {
       .getModelPerformance()
       .then((data) => setModelPerf({ data, loading: false, error: null }))
       .catch((e) => setModelPerf({ data: null, loading: false, error: String(e?.message ?? e) }));
-
-    analyticsService
-      .getAnomalies()
-      .then((data) => setAnomalies({ data, loading: false, error: null }))
-      .catch((e) => setAnomalies({ data: null, loading: false, error: String(e?.message ?? e) }));
   }, []);
 
   useEffect(() => {
@@ -91,8 +81,7 @@ export const AnalyticsPage: React.FC = () => {
     summary.loading ||
     tempTrend.loading ||
     salinityDepth.loading ||
-    modelPerf.loading ||
-    anomalies.loading;
+    modelPerf.loading;
 
   return (
     <div
@@ -136,22 +125,14 @@ export const AnalyticsPage: React.FC = () => {
         )}
       </div>
 
-      {/* ── Row 3: GLORYS Performance + Anomalies & Warnings ── */}
+      {/* ── Row 3: GLORYS Performance ── */}
       <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap' }}>
         <ModelPerformanceChart
           data={modelPerf.data}
           loading={modelPerf.loading}
           error={modelPerf.error}
         />
-        <AnomalySummaryPanel
-          anomalies={anomalies.data}
-          loading={anomalies.loading}
-          error={anomalies.error}
-        />
       </div>
-
-      {/* ── Row 4: Recent Analytical Insights (no API endpoint) ── */}
-      <RecentInsightsPanel />
     </div>
   );
 };

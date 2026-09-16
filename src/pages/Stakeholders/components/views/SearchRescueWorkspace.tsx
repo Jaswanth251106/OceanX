@@ -1,25 +1,76 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { StakeholderConfig } from '../../data/stakeholderData';
 import ScientificPanel from '../common/ScientificPanel';
 import { MetricRow, HeroMetric } from '../common/MetricReadout';
 import ActionButton from '../common/ActionButton';
 import ActionModal from '../common/ActionModal';
+import { stakeholderApiService, SarDriftData, SarTrajectoryPoint } from '../../services/stakeholderApi';
+import StakeholderErrorState from '../common/StakeholderErrorState';
 
 interface SearchRescueWorkspaceProps {
   config: StakeholderConfig;
 }
 
 export const SearchRescueWorkspace: React.FC<SearchRescueWorkspaceProps> = ({ config }) => {
-  const [simStep, setSimStep] = useState(3);
-  const [isSimulating, setIsSimulating] = useState(false);
-  const [activeModal, setActiveModal] = useState<string | null>(null);
+  // Incident input states (allows user to enter/change incident data)
+  const [latInput, setLatInput] = useState<number>(12.45);
+  const [lonInput, setLonInput] = useState<number>(88.30);
+  const [durationHours, setDurationHours] = useState<number>(14.5);
+  const [startTime, setStartTime] = useState<string>('06:15');
+  const [leewayPercent, setLeewayPercent] = useState<number>(3.2);
 
-  useEffect(() => {
-    let timer: ReturnType<typeof setInterval>;
-    if (isSimulating) {
-      setSimStep(0);
+  // Simulation & API states
+  const [simStep, setSimStep] = useState<number>(3);
+  const [isSimulating, setIsSimulating] = useState<boolean>(false);
+  const [activeModal, setActiveModal] = useState<string | null>(null);
+  const [apiError, setApiError] = useState<string | null>(null);
+
+  // Active drift data state (defaults to initial baseline, updated via POST)
+  const [driftData, setDriftData] = useState<SarDriftData>({
+    lkp: {
+      lat: `${latInput.toFixed(2)}°N`,
+      lon: `${lonInput.toFixed(2)}°E`,
+      timestamp: `${startTime} UTC (Recorded)`,
+    },
+    calculatedSearchArea: '2,340 km²',
+    displacement: '44.2 km total displacement',
+    factors: {
+      current: '0.85 m/s @ 072°',
+      timeElapsed: '14h 30m',
+      driftEstimate: '44.2 km total displacement',
+      windVector: '14 kt from 245° (SW)',
+      leewayDivergence: '±18° sector angle',
+    },
+    driftPoints: [
+      { label: 'T+0h (LKP)', x: 70, y: 50, lat: '12.45°N', lon: '88.30°E' },
+      { label: 'T+6h', x: 140, y: 85, lat: '12.58°N', lon: '88.48°E' },
+      { label: 'T+12h', x: 210, y: 125, lat: '12.71°N', lon: '88.66°E' },
+      { label: 'T+14.5h (Datum)', x: 270, y: 160, lat: '12.82°N', lon: '88.82°E' },
+    ],
+    disclaimer: config.disclaimer || 'Calculated drift vector based on illustrative leeway models. Decision support only; does not guarantee target location.',
+  });
+
+  // Execute Drift Simulation POST Request
+  const handleRunSimulation = async () => {
+    setIsSimulating(true);
+    setApiError(null);
+    setSimStep(0);
+
+    try {
+      const result = await stakeholderApiService.runSearchRescueDrift({
+        latitude: latInput,
+        longitude: lonInput,
+        durationHours,
+        startTime,
+        leewayPercent,
+      });
+      setDriftData(result);
+    } catch (err: any) {
+      setApiError(err?.message || 'Search and Rescue drift calculation endpoint unavailable.');
+    } finally {
+      // Run sequential trajectory animation across simulation steps
       let step = 0;
-      timer = setInterval(() => {
+      const timer = setInterval(() => {
         step += 1;
         if (step <= 3) {
           setSimStep(step);
@@ -29,17 +80,10 @@ export const SearchRescueWorkspace: React.FC<SearchRescueWorkspaceProps> = ({ co
         }
       }, 700);
     }
-    return () => clearInterval(timer);
-  }, [isSimulating]);
+  };
 
-  const driftPoints = [
-    { label: 'T+0h (LKP)', x: 70, y: 50, lat: '12.45°N', lon: '88.30°E' },
-    { label: 'T+6h', x: 140, y: 85, lat: '12.58°N', lon: '88.48°E' },
-    { label: 'T+12h', x: 210, y: 125, lat: '12.71°N', lon: '88.66°E' },
-    { label: 'T+14.5h (Datum)', x: 270, y: 160, lat: '12.82°N', lon: '88.82°E' },
-  ];
-
-  const searchAreaSizes = ['320 km²', '980 km²', '1,720 km²', '2,340 km²'];
+  const driftPoints: SarTrajectoryPoint[] = driftData.driftPoints;
+  const currentPt = driftPoints[Math.min(simStep, driftPoints.length - 1)] || driftPoints[0];
 
   return (
     <div className="workspace-inner">
@@ -60,38 +104,149 @@ export const SearchRescueWorkspace: React.FC<SearchRescueWorkspaceProps> = ({ co
       >
         <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ fontWeight: 700 }}>⚠ SAR Operations Mandate:</span>
-          <span>{config.disclaimer}</span>
+          <span>{driftData.disclaimer}</span>
         </span>
         <span className="footer-disclaimer-pill" style={{ background: '#FEF2F2', borderColor: '#F87171', color: '#B91C1C' }}>
           Decision Support Only
         </span>
       </div>
 
+      {apiError && (
+        <StakeholderErrorState
+          title="SAR Drift Simulation Unavailable"
+          endpoint="POST /api/stakeholder/search-rescue/drift"
+          error={apiError}
+          onRetry={handleRunSimulation}
+        />
+      )}
+
       <div className="panels-grid-1-2">
         {/* Left Column: LKP & Search Area */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {/* Panel 1: Last Known Position */}
+          {/* Panel 1: Last Known Position with Editable Incident Inputs */}
           <ScientificPanel
-            title="Last Known Position"
+            title="Last Known Position & Incident Inputs"
             tag="Origin Datum"
-            meta={config.lkp?.timestamp}
+            meta={`${startTime} UTC`}
           >
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              <HeroMetric
-                label="Latitude"
-                value={config.lkp?.lat || ''}
-                subtext="Beacon coordinate"
-                statusColor="var(--color-ocean-blue)"
-              />
-              <HeroMetric
-                label="Longitude"
-                value={config.lkp?.lon || ''}
-                subtext="Beacon coordinate"
-                statusColor="var(--color-ocean-blue)"
-              />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              <div>
+                <label style={{ fontSize: '11px', color: 'var(--color-text-secondary)', fontWeight: 600, display: 'block', marginBottom: '2px' }}>
+                  Latitude (°N)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={latInput}
+                  onChange={(e) => setLatInput(parseFloat(e.target.value) || 0)}
+                  style={{
+                    width: '100%',
+                    padding: '6px 8px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--color-border)',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    color: 'var(--color-primary-navy)',
+                    background: '#FFFFFF',
+                  }}
+                  disabled={isSimulating}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '11px', color: 'var(--color-text-secondary)', fontWeight: 600, display: 'block', marginBottom: '2px' }}>
+                  Longitude (°E)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={lonInput}
+                  onChange={(e) => setLonInput(parseFloat(e.target.value) || 0)}
+                  style={{
+                    width: '100%',
+                    padding: '6px 8px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--color-border)',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    color: 'var(--color-primary-navy)',
+                    background: '#FFFFFF',
+                  }}
+                  disabled={isSimulating}
+                />
+              </div>
             </div>
-            <div style={{ fontSize: '11.5px', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
-              Origin: Simulated emergency locator transmitter (06:15 UTC).
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginTop: '8px' }}>
+              <div>
+                <label style={{ fontSize: '11px', color: 'var(--color-text-secondary)', fontWeight: 600, display: 'block', marginBottom: '2px' }}>
+                  Start Time (UTC)
+                </label>
+                <input
+                  type="text"
+                  value={startTime}
+                  onChange={(e) => setStartTime(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '6px 8px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--color-border)',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    background: '#FFFFFF',
+                  }}
+                  disabled={isSimulating}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '11px', color: 'var(--color-text-secondary)', fontWeight: 600, display: 'block', marginBottom: '2px' }}>
+                  Elapsed (Hours)
+                </label>
+                <input
+                  type="number"
+                  step="0.5"
+                  min="1"
+                  max="72"
+                  value={durationHours}
+                  onChange={(e) => setDurationHours(parseFloat(e.target.value) || 1)}
+                  style={{
+                    width: '100%',
+                    padding: '6px 8px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--color-border)',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    background: '#FFFFFF',
+                  }}
+                  disabled={isSimulating}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '11px', color: 'var(--color-text-secondary)', fontWeight: 600, display: 'block', marginBottom: '2px' }}>
+                  Leeway (%)
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0.5"
+                  max="10"
+                  value={leewayPercent}
+                  onChange={(e) => setLeewayPercent(parseFloat(e.target.value) || 3.2)}
+                  style={{
+                    width: '100%',
+                    padding: '6px 8px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--color-border)',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    background: '#FFFFFF',
+                  }}
+                  disabled={isSimulating}
+                />
+              </div>
+            </div>
+
+            <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', marginTop: '8px' }}>
+              Inputs propagate to <strong>POST /api/stakeholder/search-rescue/drift</strong>.
             </div>
           </ScientificPanel>
 
@@ -103,16 +258,16 @@ export const SearchRescueWorkspace: React.FC<SearchRescueWorkspaceProps> = ({ co
           >
             <HeroMetric
               label="Calculated Search Area"
-              value={searchAreaSizes[simStep]}
+              value={driftData.calculatedSearchArea}
               subtext="Expanding uncertainty boundary"
               statusColor="var(--color-danger)"
             />
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginTop: '6px' }}>
-              <MetricRow label="Current" value={config.factors?.current || ''} detail="Geostrophic flow" />
-              <MetricRow label="Time" value={config.factors?.timeElapsed || ''} detail="Elapsed drift" />
-              <MetricRow label="Drift Estimate" value={config.factors?.driftEstimate || ''} badge="Vector Total" badgeType="badge-warning" />
-              <MetricRow label="Windage (Leeway)" value="3.2% leeway" detail="14 kt @ 245° SW" />
+              <MetricRow label="Current" value={driftData.factors.current} detail="Geostrophic flow" />
+              <MetricRow label="Time Elapsed" value={driftData.factors.timeElapsed} detail="Elapsed drift" />
+              <MetricRow label="Drift Estimate" value={driftData.factors.driftEstimate} badge="Vector Total" badgeType="badge-warning" />
+              <MetricRow label="Windage (Leeway)" value={`${leewayPercent}% leeway`} detail={driftData.factors.windVector} />
             </div>
           </ScientificPanel>
         </div>
@@ -128,9 +283,9 @@ export const SearchRescueWorkspace: React.FC<SearchRescueWorkspaceProps> = ({ co
               className="action-btn btn-primary"
               style={{ padding: '4px 12px', fontSize: '11.5px' }}
               disabled={isSimulating}
-              onClick={() => setIsSimulating(true)}
+              onClick={handleRunSimulation}
             >
-              {isSimulating ? '● Running...' : '▶ Run Drift Simulation'}
+              {isSimulating ? '● Calculating...' : '▶ Run Drift Simulation'}
             </button>
           }
         >
@@ -168,9 +323,9 @@ export const SearchRescueWorkspace: React.FC<SearchRescueWorkspaceProps> = ({ co
                 </g>
               ))}
 
-              {simStep > 0 && (
+              {simStep > 0 && currentPt && (
                 <polygon
-                  points={`70,50 ${driftPoints[simStep].x + 35},${driftPoints[simStep].y - 25} ${driftPoints[simStep].x + 20},${driftPoints[simStep].y + 40}`}
+                  points={`70,50 ${currentPt.x + 35},${currentPt.y - 25} ${currentPt.x + 20},${currentPt.y + 40}`}
                   fill="rgba(245, 158, 11, 0.08)"
                   stroke="rgba(245, 158, 11, 0.35)"
                   strokeWidth="1"
@@ -178,7 +333,7 @@ export const SearchRescueWorkspace: React.FC<SearchRescueWorkspaceProps> = ({ co
                 />
               )}
 
-              {simStep === 3 && (
+              {simStep === 3 && currentPt && (
                 <g opacity="0.8">
                   {[
                     { dx: -12, dy: -8 }, { dx: 15, dy: 10 }, { dx: -8, dy: 14 },
@@ -188,8 +343,8 @@ export const SearchRescueWorkspace: React.FC<SearchRescueWorkspaceProps> = ({ co
                   ].map((p, i) => (
                     <circle
                       key={i}
-                      cx={driftPoints[simStep].x + p.dx}
-                      cy={driftPoints[simStep].y + p.dy}
+                      cx={currentPt.x + p.dx}
+                      cy={currentPt.y + p.dy}
                       r="2"
                       fill="#B45309"
                     />
@@ -197,19 +352,21 @@ export const SearchRescueWorkspace: React.FC<SearchRescueWorkspaceProps> = ({ co
                 </g>
               )}
 
-              <ellipse
-                cx={driftPoints[simStep].x}
-                cy={driftPoints[simStep].y}
-                rx={simStep === 0 ? 15 : simStep === 1 ? 30 : simStep === 2 ? 48 : 65}
-                ry={simStep === 0 ? 10 : simStep === 1 ? 20 : simStep === 2 ? 32 : 44}
-                fill="url(#searchEllipseGradLight)"
-                stroke="#E5484D"
-                strokeWidth="1.8"
-                strokeDasharray="4 2"
-                transform={`rotate(28 ${driftPoints[simStep].x} ${driftPoints[simStep].y})`}
-              />
+              {currentPt && (
+                <ellipse
+                  cx={currentPt.x}
+                  cy={currentPt.y}
+                  rx={simStep === 0 ? 15 : simStep === 1 ? 30 : simStep === 2 ? 48 : 65}
+                  ry={simStep === 0 ? 10 : simStep === 1 ? 20 : simStep === 2 ? 32 : 44}
+                  fill="url(#searchEllipseGradLight)"
+                  stroke="#E5484D"
+                  strokeWidth="1.8"
+                  strokeDasharray="4 2"
+                  transform={`rotate(28 ${currentPt.x} ${currentPt.y})`}
+                />
+              )}
 
-              {simStep >= 1 && (
+              {simStep >= 1 && driftPoints[0] && driftPoints[1] && (
                 <line
                   x1={driftPoints[0].x}
                   y1={driftPoints[0].y}
@@ -219,7 +376,7 @@ export const SearchRescueWorkspace: React.FC<SearchRescueWorkspaceProps> = ({ co
                   strokeWidth="2.5"
                 />
               )}
-              {simStep >= 2 && (
+              {simStep >= 2 && driftPoints[1] && driftPoints[2] && (
                 <line
                   x1={driftPoints[1].x}
                   y1={driftPoints[1].y}
@@ -229,7 +386,7 @@ export const SearchRescueWorkspace: React.FC<SearchRescueWorkspaceProps> = ({ co
                   strokeWidth="2.5"
                 />
               )}
-              {simStep >= 3 && (
+              {simStep >= 3 && driftPoints[2] && driftPoints[3] && (
                 <line
                   x1={driftPoints[2].x}
                   y1={driftPoints[2].y}
@@ -276,9 +433,9 @@ export const SearchRescueWorkspace: React.FC<SearchRescueWorkspaceProps> = ({ co
             </svg>
 
             <div className="sar-hud-overlay">
-              <div><strong>LKP:</strong> 12.45°N, 88.30°E</div>
+              <div><strong>LKP:</strong> {driftData.lkp.lat}, {driftData.lkp.lon}</div>
               <div style={{ color: 'var(--color-ocean-blue)', fontWeight: 600 }}>
-                {driftPoints[simStep].label}: {driftPoints[simStep].lat}, {driftPoints[simStep].lon}
+                {currentPt?.label}: {currentPt?.lat}, {currentPt?.lon}
               </div>
             </div>
 
@@ -299,8 +456,8 @@ export const SearchRescueWorkspace: React.FC<SearchRescueWorkspaceProps> = ({ co
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px', fontSize: '11.5px', color: 'var(--color-text-secondary)' }}>
-            <span>Drift Model: Geostrophic Current Integration + 3% Leeway</span>
-            <span style={{ color: '#B45309', fontWeight: 600 }}>Total Displacement: ~44.2 km ENE</span>
+            <span>Drift Model: Geostrophic Current Integration + Leeway Vector</span>
+            <span style={{ color: '#B45309', fontWeight: 600 }}>Total Displacement: ~{driftData.displacement}</span>
           </div>
         </ScientificPanel>
       </div>
@@ -316,7 +473,7 @@ export const SearchRescueWorkspace: React.FC<SearchRescueWorkspaceProps> = ({ co
               primary={act.primary}
               onClick={() => {
                 if (act.id === 'run_drift') {
-                  setIsSimulating(true);
+                  handleRunSimulation();
                 } else {
                   setActiveModal(act.id);
                 }
@@ -333,11 +490,11 @@ export const SearchRescueWorkspace: React.FC<SearchRescueWorkspaceProps> = ({ co
         title="Tactical Leeway & Drift Factors"
       >
         <p style={{ color: 'var(--color-text-secondary)' }}>
-          Standard maritime search craft leeway coefficients (IAMSAR standard).
+          Maritime search craft leeway coefficients (IAMSAR standard).
         </p>
         <div style={{ background: 'var(--color-bg-page)', padding: '14px', borderRadius: '8px', border: '1px solid var(--color-border)', fontSize: '12px' }}>
           <div><strong>Target:</strong> Life Raft with Ballast (No Drogue)</div>
-          <div><strong>Leeway Rate:</strong> 3.2% of 10m Wind Speed</div>
+          <div><strong>Active Leeway Rate:</strong> {leewayPercent}% of 10m Wind Speed</div>
           <div><strong>Divergence Angle:</strong> ±18.0°</div>
           <div><strong>Surface Current:</strong> 100% Geostrophic + Wind-drift</div>
           <div style={{ color: 'var(--color-success)', fontWeight: 600, marginTop: '8px' }}>
@@ -358,18 +515,18 @@ export const SearchRescueWorkspace: React.FC<SearchRescueWorkspaceProps> = ({ co
           <pre style={{ margin: 0, color: 'var(--color-text-primary)', fontFamily: 'var(--font-family-mono, monospace)' }}>
 {`{
   "type": "FeatureCollection",
-  "name": "OCEANX_SAR_SEARCH_ELLIPSE_06Z",
+  "name": "OCEANX_SAR_SEARCH_ELLIPSE",
   "features": [
     {
       "type": "Feature",
       "geometry": {
         "type": "Polygon",
-        "coordinates": [[[88.30, 12.45], [88.58, 12.62], [88.94, 12.91], [88.75, 12.72], [88.30, 12.45]]]
+        "coordinates": [[[${lonInput}, ${latInput}], [${(lonInput + 0.28).toFixed(2)}, ${(latInput + 0.17).toFixed(2)}], [${(lonInput + 0.64).toFixed(2)}, ${(latInput + 0.46).toFixed(2)}], [${lonInput}, ${latInput}]]]
       },
       "properties": {
-        "search_area_km2": 2340,
+        "search_area": "${driftData.calculatedSearchArea}",
         "confidence": "95%",
-        "time_elapsed": "14h 30m"
+        "time_elapsed": "${driftData.factors.timeElapsed}"
       }
     }
   ]

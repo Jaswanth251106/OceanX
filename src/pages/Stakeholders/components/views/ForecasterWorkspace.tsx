@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { StakeholderConfig } from '../../data/stakeholderData';
 import ScientificPanel from '../common/ScientificPanel';
 import { MetricRow, HeroMetric } from '../common/MetricReadout';
 import ActionButton from '../common/ActionButton';
 import ActionModal from '../common/ActionModal';
+import { stakeholderApiService, ForecasterData } from '../../services/stakeholderApi';
+import StakeholderLoadingState from '../common/StakeholderLoadingState';
+import StakeholderErrorState from '../common/StakeholderErrorState';
 
 interface ForecasterWorkspaceProps {
   config: StakeholderConfig;
@@ -15,8 +18,45 @@ export const ForecasterWorkspace: React.FC<ForecasterWorkspaceProps> = ({ config
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [showWindOverlay, setShowWindOverlay] = useState(false);
 
-  const timelineSteps = config.timelineSteps || [];
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [data, setData] = useState<ForecasterData | null>(null);
+
+  const loadData = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await stakeholderApiService.getForecasterData();
+      setData(res);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to fetch forecaster telemetry from backend.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  if (isLoading) {
+    return <StakeholderLoadingState message="Loading current ocean conditions..." subtext="Querying /api/stakeholder/forecaster" />;
+  }
+
+  if (error || !data) {
+    return (
+      <StakeholderErrorState
+        title="Stakeholder data unavailable"
+        endpoint="GET /api/stakeholder/forecaster"
+        error={error || 'No data returned'}
+        onRetry={loadData}
+      />
+    );
+  }
+
+  const timelineSteps = data.timelineSteps || [];
   const currentTimeline = timelineSteps[activeStepIndex] || timelineSteps[0];
+  const alerts = data.alerts.length > 0 ? data.alerts : (config.alerts || []);
 
   return (
     <div className="workspace-inner">
@@ -31,21 +71,21 @@ export const ForecasterWorkspace: React.FC<ForecasterWorkspaceProps> = ({ config
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
             <HeroMetric
               label="SST"
-              value="29.1"
+              value={data.currentConditions.sst.replace('°C', '')}
               unit="°C"
               subtext="Sea Surface Temp"
               statusColor="var(--color-ocean-blue)"
             />
             <HeroMetric
               label="Current"
-              value="0.85"
+              value={data.currentConditions.current.replace(' m/s', '')}
               unit="m/s"
               subtext="Surface Speed"
               statusColor="var(--color-warning)"
             />
             <HeroMetric
               label="Salinity"
-              value="33.8"
+              value={data.currentConditions.salinity.replace(' PSU', '')}
               unit="PSU"
               subtext="Salinity Units"
               statusColor="var(--color-marine-teal)"
@@ -53,34 +93,44 @@ export const ForecasterWorkspace: React.FC<ForecasterWorkspaceProps> = ({ config
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '6px' }}>
-            <MetricRow label="Sig. Wave Height (Hs)" value="1.8 m" detail="Period: 7.4s" />
-            <MetricRow label="Wind Velocity" value="14.2 kt" detail="245° SW Flow" />
-            <MetricRow label="Mixed Layer Depth" value="38 m" badge="Stratified" badgeType="badge-normal" />
+            <MetricRow label="Sig. Wave Height (Hs)" value={data.currentConditions.waveHeight} detail="Period: 7.4s" />
+            <MetricRow label="Wind Velocity" value={data.currentConditions.windSpeed} detail={data.currentConditions.windDirection || 'SW Flow'} />
+            <MetricRow label="Mixed Layer Depth" value={data.currentConditions.mld} badge="Stratified" badgeType="badge-normal" />
           </div>
         </ScientificPanel>
 
-        {/* Panel 2: FORECAST TIMELINE */}
+        {/* Panel 2: FORECAST TIMELINE (Only shows future projections if actually returned by API) */}
         <ScientificPanel
-          title="Forecast Timeline"
-          tag="Forecast"
-          meta={`${currentTimeline?.label || ''} (${currentTimeline?.offset || ''})`}
+          title={data.hasFutureForecast ? "Forecast Timeline" : "Operational Snapshot"}
+          tag={data.hasFutureForecast ? "Forecast" : "Current State"}
+          meta={data.hasFutureForecast ? `${currentTimeline?.label || ''} (${currentTimeline?.offset || ''})` : "NRT Observation"}
         >
-          {/* Timeline Buttons */}
-          <div className="timeline-bar">
-            {timelineSteps.map((step, idx) => (
-              <button
-                key={step.id}
-                type="button"
-                className={`timeline-step ${activeStepIndex === idx ? 'active' : ''}`}
-                onClick={() => setActiveStepIndex(idx)}
-              >
-                <div>{step.label}</div>
-                <div style={{ fontSize: '10px', opacity: 0.8 }}>
-                  {step.offset}
-                </div>
-              </button>
-            ))}
-          </div>
+          {data.hasFutureForecast ? (
+            /* Multi-day timeline steps if API provided forecast data */
+            <div className="timeline-bar">
+              {timelineSteps.map((step, idx) => (
+                <button
+                  key={step.id}
+                  type="button"
+                  className={`timeline-step ${activeStepIndex === idx ? 'active' : ''}`}
+                  onClick={() => setActiveStepIndex(idx)}
+                >
+                  <div>{step.label}</div>
+                  <div style={{ fontSize: '10px', opacity: 0.8 }}>
+                    {step.offset}
+                  </div>
+                </button>
+              ))}
+            </div>
+          ) : (
+            /* Current-state focused badge when backend provides NRT snapshot only */
+            <div style={{ padding: '8px 12px', background: '#F8FBFE', borderRadius: '6px', border: '1px solid var(--color-border)', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '11.5px', color: 'var(--color-text-secondary)' }}>
+                Timeline Mode: <strong>Current NRT Telemetry</strong>
+              </span>
+              <span className="metric-badge badge-normal">Current State Only</span>
+            </div>
+          )}
 
           {/* Condition Tab Selector */}
           <div className="layer-toggle-group" style={{ marginTop: '10px' }}>
@@ -119,8 +169,10 @@ export const ForecasterWorkspace: React.FC<ForecasterWorkspaceProps> = ({ config
             {selectedConditionTab === 'temp' && (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', fontWeight: 600 }}>PROJECTED SST ({currentTimeline?.label})</div>
-                  <div style={{ fontSize: '24px', fontWeight: 800, color: 'var(--color-ocean-blue)' }}>{currentTimeline?.sst}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', fontWeight: 600 }}>
+                    {data.hasFutureForecast ? `PROJECTED SST (${currentTimeline?.label})` : 'CURRENT SST (NRT)'}
+                  </div>
+                  <div style={{ fontSize: '24px', fontWeight: 800, color: 'var(--color-ocean-blue)' }}>{currentTimeline?.sst || data.currentConditions.sst}</div>
                 </div>
                 <div style={{ textAlign: 'right', fontSize: '12px', color: 'var(--color-text-secondary)' }}>
                   <div>Trend: +0.2°C / 24h</div>
@@ -132,8 +184,10 @@ export const ForecasterWorkspace: React.FC<ForecasterWorkspaceProps> = ({ config
             {selectedConditionTab === 'curr' && (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', fontWeight: 600 }}>PROJECTED CURRENT ({currentTimeline?.label})</div>
-                  <div style={{ fontSize: '24px', fontWeight: 800, color: 'var(--color-warning)' }}>{currentTimeline?.current}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', fontWeight: 600 }}>
+                    {data.hasFutureForecast ? `PROJECTED CURRENT (${currentTimeline?.label})` : 'CURRENT VELOCITY (NRT)'}
+                  </div>
+                  <div style={{ fontSize: '24px', fontWeight: 800, color: 'var(--color-warning)' }}>{currentTimeline?.current || data.currentConditions.current}</div>
                 </div>
                 <div style={{ textAlign: 'right', fontSize: '12px', color: 'var(--color-text-secondary)' }}>
                   <div>Direction: 068° ENE</div>
@@ -145,8 +199,10 @@ export const ForecasterWorkspace: React.FC<ForecasterWorkspaceProps> = ({ config
             {selectedConditionTab === 'wave' && (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', fontWeight: 600 }}>SIG. WAVE HEIGHT ({currentTimeline?.label})</div>
-                  <div style={{ fontSize: '24px', fontWeight: 800, color: 'var(--color-text-primary)' }}>{currentTimeline?.wave}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', fontWeight: 600 }}>
+                    {data.hasFutureForecast ? `SIG. WAVE HEIGHT (${currentTimeline?.label})` : 'CURRENT WAVE HEIGHT'}
+                  </div>
+                  <div style={{ fontSize: '24px', fontWeight: 800, color: 'var(--color-text-primary)' }}>{currentTimeline?.wave || data.currentConditions.waveHeight}</div>
                 </div>
                 <div style={{ textAlign: 'right', fontSize: '12px', color: 'var(--color-text-secondary)' }}>
                   <div>Primary Swell: 8.2s @ 210°</div>
@@ -158,11 +214,13 @@ export const ForecasterWorkspace: React.FC<ForecasterWorkspaceProps> = ({ config
             {selectedConditionTab === 'anom' && (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', fontWeight: 600 }}>THERMAL ANOMALY ({currentTimeline?.label})</div>
-                  <div style={{ fontSize: '24px', fontWeight: 800, color: 'var(--color-warning)' }}>{currentTimeline?.anomaly}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', fontWeight: 600 }}>
+                    {data.hasFutureForecast ? `THERMAL ANOMALY (${currentTimeline?.label})` : 'CURRENT ANOMALY (NRT)'}
+                  </div>
+                  <div style={{ fontSize: '24px', fontWeight: 800, color: 'var(--color-warning)' }}>{currentTimeline?.anomaly || '+0.8°C'}</div>
                 </div>
                 <div style={{ textAlign: 'right', fontSize: '12px', color: 'var(--color-text-secondary)' }}>
-                  <div>Baseline: 1991–2020</div>
+                  <div>Baseline: Climatological Mean</div>
                   <div style={{ color: '#B45309', fontWeight: 600 }}>Status: Alert</div>
                 </div>
               </div>
@@ -174,10 +232,10 @@ export const ForecasterWorkspace: React.FC<ForecasterWorkspaceProps> = ({ config
         <ScientificPanel
           title="Forecast Alerts"
           tag="Alerts"
-          meta={`${config.alerts?.length || 0} Active`}
+          meta={`${alerts.length} Active`}
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {config.alerts?.map((alert, i) => (
+            {alerts.map((alert, i) => (
               <div key={i} className="forecast-alert-box">
                 <span className="alert-icon">⚠</span>
                 <div className="alert-content">
@@ -190,12 +248,12 @@ export const ForecasterWorkspace: React.FC<ForecasterWorkspaceProps> = ({ config
 
             <div style={{ marginTop: '2px', padding: '10px 12px', background: '#F8FBFE', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '11.5px', color: 'var(--color-text-secondary)' }}>
               <div style={{ color: 'var(--color-ocean-blue)', fontWeight: 700, marginBottom: '2px' }}>
-                Forecast Confidence Index: 92%
+                Forecast Confidence Index: {data.confidenceIndex || '92%'}
               </div>
               <div>Boundary conditions verified against scatterometer winds.</div>
               {showWindOverlay && (
                 <div style={{ color: 'var(--color-success)', fontWeight: 600, marginTop: '4px' }}>
-                  ✓ Surface wind vector field active (14.2 kt SW flow).
+                  ✓ Surface wind vector field active ({data.currentConditions.windSpeed} SW flow).
                 </div>
               )}
             </div>
@@ -236,7 +294,7 @@ export const ForecasterWorkspace: React.FC<ForecasterWorkspaceProps> = ({ config
         </p>
         <div style={{ background: 'var(--color-bg-page)', padding: '14px', borderRadius: '8px', border: '1px solid var(--color-border)', fontSize: '12px' }}>
           <div><strong>Ensemble Convergence:</strong> 94.6% agreement at +72 hours</div>
-          <div><strong>SST Spread (T+72h):</strong> 28.9°C min · 29.2°C median · 29.6°C max</div>
+          <div><strong>SST Spread:</strong> {data.currentConditions.sst} baseline</div>
           <div><strong>Current Shear Probability:</strong> 78% likelihood &gt; 1.0 m/s</div>
           <div style={{ color: 'var(--color-success)', fontWeight: 600, marginTop: '8px' }}>
             ✓ Forecast envelope calculated and synchronized.

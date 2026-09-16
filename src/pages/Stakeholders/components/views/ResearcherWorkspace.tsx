@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { StakeholderConfig } from '../../data/stakeholderData';
 import ScientificPanel from '../common/ScientificPanel';
 import { MetricRow, HeroMetric } from '../common/MetricReadout';
 import ActionButton from '../common/ActionButton';
 import ActionModal from '../common/ActionModal';
+import { stakeholderApiService, ResearcherData } from '../../services/stakeholderApi';
+import StakeholderLoadingState from '../common/StakeholderLoadingState';
+import StakeholderErrorState from '../common/StakeholderErrorState';
 
 interface ResearcherWorkspaceProps {
   config: StakeholderConfig;
@@ -14,14 +17,43 @@ export const ResearcherWorkspace: React.FC<ResearcherWorkspaceProps> = ({ config
   const [selectedSlice, setSelectedSlice] = useState<'surface' | '200m' | '500m' | '1000m'>('500m');
   const [activeModal, setActiveModal] = useState<string | null>(null);
 
-  const sliceDepths = {
-    surface: { depth: '0m', temp: '29.1°C', sal: '33.8 PSU', vel: '0.85 m/s' },
-    '200m': { depth: '200m', temp: '16.4°C', sal: '34.7 PSU', vel: '0.32 m/s' },
-    '500m': { depth: '500m', temp: '10.2°C', sal: '35.1 PSU', vel: '0.14 m/s' },
-    '1000m': { depth: '1000m', temp: '6.8°C', sal: '35.2 PSU', vel: '0.05 m/s' },
-  };
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [data, setData] = useState<ResearcherData | null>(null);
 
-  const activeSliceData = sliceDepths[selectedSlice];
+  const loadData = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await stakeholderApiService.getResearcherData();
+      setData(res);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to fetch researcher telemetry from backend.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  if (isLoading) {
+    return <StakeholderLoadingState message="Loading researcher data..." subtext="Querying /api/stakeholder/researcher" />;
+  }
+
+  if (error || !data) {
+    return (
+      <StakeholderErrorState
+        title="Stakeholder data unavailable"
+        endpoint="GET /api/stakeholder/researcher"
+        error={error || 'No data returned'}
+        onRetry={loadData}
+      />
+    );
+  }
+
+  const activeSliceData = data.sliceDepths[selectedSlice];
 
   return (
     <div className="workspace-inner">
@@ -94,7 +126,7 @@ export const ResearcherWorkspace: React.FC<ResearcherWorkspaceProps> = ({ config
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginTop: '8px' }}>
               <MetricRow label="Velocity Magnitude" value={activeSliceData.vel} detail="068° ENE flow" />
-              <MetricRow label="20°C Isotherm Depth" value="142.4 m" detail="Sector 88.3°E" />
+              <MetricRow label="20°C Isotherm Depth" value={data.metrics.isotherm20cDepth} detail="Sector 88.3°E" />
               <MetricRow label="Stratification Phase" value={selectedSlice === 'surface' ? 'Mixed Layer' : selectedSlice === '200m' ? 'Thermocline' : 'Deep Water'} badge="Assimilated" badgeType="badge-normal" />
             </div>
           </div>
@@ -109,19 +141,19 @@ export const ResearcherWorkspace: React.FC<ResearcherWorkspaceProps> = ({ config
         <ScientificPanel
           title="Model vs Observation"
           tag="Model vs Argo"
-          meta="42 Active Profiles"
+          meta={data.metrics.activeProfiles}
         >
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             <HeroMetric
               label="RMSE"
-              value="0.34"
+              value={data.metrics.rmse}
               unit="°C"
               subtext="Root Mean Square Error"
               statusColor="var(--color-success)"
             />
             <HeroMetric
               label="Correlation"
-              value="0.96"
+              value={data.metrics.correlation}
               unit="Pearson"
               subtext="p < 0.001 (High agreement)"
               statusColor="var(--color-ocean-blue)"
@@ -129,9 +161,9 @@ export const ResearcherWorkspace: React.FC<ResearcherWorkspaceProps> = ({ config
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '4px' }}>
-            <MetricRow label="Mean Bias" value="-0.04°C" badge="Low Bias" badgeType="badge-normal" />
-            <MetricRow label="In-Situ Argo Floats" value="42 Active" detail="Sector 88.3°E" />
-            <MetricRow label="Standard Deviation (σ)" value="0.28°C" />
+            <MetricRow label="Mean Bias" value={data.metrics.meanBias} badge="Low Bias" badgeType="badge-normal" />
+            <MetricRow label="In-Situ Argo Floats" value={data.metrics.activeProfiles} detail="Sector 88.3°E" />
+            <MetricRow label="Standard Deviation (σ)" value={data.metrics.stdDev} />
           </div>
 
           {/* Profile Graph */}
@@ -179,7 +211,7 @@ export const ResearcherWorkspace: React.FC<ResearcherWorkspaceProps> = ({ config
         >
           <HeroMetric
             label="Thermal Trend"
-            value="+0.018"
+            value={data.trend.thermalTrend}
             unit="°C/year"
             subtext="Increasing [95% CI: 0.014 - 0.022]"
             statusColor="var(--color-warning)"
@@ -188,18 +220,18 @@ export const ResearcherWorkspace: React.FC<ResearcherWorkspaceProps> = ({ config
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '4px' }}>
             <MetricRow
               label="Trajectory"
-              value="Increasing"
+              value={data.trend.trajectory}
               badge="Significant"
               badgeType="badge-warning"
             />
-            <MetricRow label="Cumulative 30-Yr Delta" value="+0.54°C" detail="Upper 300m" />
-            <MetricRow label="Salinity Trend" value="-0.04 PSU/decade" detail="Monsoon runoff" />
+            <MetricRow label="Cumulative 30-Yr Delta" value={data.trend.cumulativeDelta} detail="Upper 300m" />
+            <MetricRow label="Salinity Trend" value={data.trend.salinityTrend} detail="Monsoon runoff" />
           </div>
 
           <div className="mini-profile-box" style={{ height: '110px' }}>
             <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', fontWeight: 600, marginBottom: '6px', display: 'flex', justifyContent: 'space-between' }}>
               <span>Annual SST Anomaly</span>
-              <span style={{ color: '#B45309', fontWeight: 700 }}>+0.82°C Anomaly</span>
+              <span style={{ color: '#B45309', fontWeight: 700 }}>{data.trend.annualAnomaly}</span>
             </div>
             <svg viewBox="0 0 300 65" style={{ width: '100%', height: '65px' }}>
               <line x1="10" y1="35" x2="290" y2="35" stroke="var(--color-border)" strokeWidth="1" />
@@ -265,7 +297,7 @@ export const ResearcherWorkspace: React.FC<ResearcherWorkspaceProps> = ({ config
         </p>
         <div style={{ background: 'var(--color-bg-page)', padding: '14px', borderRadius: '8px', border: '1px solid var(--color-border)', fontSize: '12px' }}>
           <div><strong>Sector:</strong> 10°N – 15°N, 85°E – 90°E (Bay of Bengal)</div>
-          <div><strong>20°C Isotherm Depth:</strong> 142.4 meters</div>
+          <div><strong>20°C Isotherm Depth:</strong> {data.metrics.isotherm20cDepth}</div>
           <div><strong>Mixed Layer Thickness:</strong> 38.6 meters</div>
           <div style={{ color: 'var(--color-ocean-blue)', fontWeight: 600, marginTop: '8px' }}>
             Status: Volumetric model buffer ready (0.08° grid, 40 vertical sigma layers).
@@ -284,9 +316,9 @@ export const ResearcherWorkspace: React.FC<ResearcherWorkspaceProps> = ({ config
         <div style={{ background: 'var(--color-bg-page)', padding: '14px', borderRadius: '8px', border: '1px solid var(--color-border)', fontSize: '12px' }}>
           <div><strong>Float ID:</strong> WMO 2902189 (Apex Profiler)</div>
           <div><strong>Cycle:</strong> #142 · Maximum Depth: 2,000 dbar</div>
-          <div><strong>Surface Bias:</strong> -0.02°C · Thermocline RMSE: 0.38°C</div>
+          <div><strong>Mean Bias:</strong> {data.metrics.meanBias} · Thermocline RMSE: {data.metrics.rmse}°C</div>
           <div style={{ color: 'var(--color-success)', fontWeight: 600, marginTop: '6px' }}>
-            Agreement: 0.964 Correlation (Pearson r)
+            Agreement: {data.metrics.correlation} Correlation (Pearson r)
           </div>
         </div>
       </ActionModal>
@@ -300,8 +332,8 @@ export const ResearcherWorkspace: React.FC<ResearcherWorkspaceProps> = ({ config
           30-day running sea surface temperature anomaly relative to the 1991–2020 baseline.
         </p>
         <div style={{ background: 'var(--color-bg-page)', padding: '14px', borderRadius: '8px', border: '1px solid var(--color-border)', fontSize: '12px' }}>
-          <div><strong>Peak SST Anomaly:</strong> +1.4°C in Sector 4 (Thermal Front)</div>
-          <div><strong>Area:</strong> 18,400 km² exceeding +1.0°C threshold</div>
+          <div><strong>Peak SST Anomaly:</strong> {data.trend.annualAnomaly}</div>
+          <div><strong>Area:</strong> 18,400 km² exceeding threshold</div>
           <div style={{ color: 'var(--color-warning)', fontWeight: 600, marginTop: '6px' }}>
             Note: Illustrative dataset for diagnostic demonstration.
           </div>
@@ -317,9 +349,9 @@ export const ResearcherWorkspace: React.FC<ResearcherWorkspaceProps> = ({ config
           Linear regression and Mann-Kendall trend assessment for the Northern Indian Ocean basin.
         </p>
         <div style={{ background: 'var(--color-bg-page)', padding: '14px', borderRadius: '8px', border: '1px solid var(--color-border)', fontSize: '12px' }}>
-          <div><strong>Slope:</strong> +0.0184°C / year (p &lt; 0.0001)</div>
-          <div><strong>Upper Ocean Heat Content:</strong> +0.32 GJ/m² / decade</div>
-          <div><strong>95% Confidence Interval:</strong> [0.0142, 0.0226] °C/year</div>
+          <div><strong>Slope:</strong> {data.trend.thermalTrend}°C / year</div>
+          <div><strong>Cumulative Delta:</strong> {data.trend.cumulativeDelta}</div>
+          <div><strong>Salinity Trend:</strong> {data.trend.salinityTrend}</div>
         </div>
       </ActionModal>
     </div>
